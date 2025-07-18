@@ -1,0 +1,90 @@
+{
+  "project_info": {
+    "project_number": "1044287144101",
+    "project_id": "findom-124",
+    "storage_bucket": "findom-124.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1044287144101:android:04173c0cb75265b4f0cd4c",
+        "android_client_info": {
+          "package_name": "com.example.findom"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1044287144101-p8kr74vvajppumuug01f48qbuhpg1hq2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA27T4ckpgctCwFWLAPk9xCjeZccVjA3m4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1044287144101-p8kr74vvajppumuug01f48qbuhpg1hq2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1044287144101-vt056ou2nkqrsstehelunmuktdl6mmd1.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.findom"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1044287144101:android:ffaf4615c3b4be6bf0cd4c",
+        "android_client_info": {
+          "package_name": "com.findom"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1044287144101-4el86c9ua3st62v62tdhpskasdooshrt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.findom",
+            "certificate_hash": "faafa363a25c93333b5a9b16926d706854371263"
+          }
+        },
+        {
+          "client_id": "1044287144101-p8kr74vvajppumuug01f48qbuhpg1hq2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA27T4ckpgctCwFWLAPk9xCjeZccVjA3m4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1044287144101-p8kr74vvajppumuug01f48qbuhpg1hq2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1044287144101-vt056ou2nkqrsstehelunmuktdl6mmd1.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.findom"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
