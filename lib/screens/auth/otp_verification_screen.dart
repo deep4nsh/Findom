@@ -1,19 +1,18 @@
+//LOGIN OTP INPUT SCREEN
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
-
-import '../home/home_screen.dart'; // adjust path if needed
 
 class OtpVerificationScreen extends StatefulWidget {
   final String verificationId;
   final String phoneNumber;
 
   const OtpVerificationScreen({
-    super.key,
+    Key? key,
     required this.verificationId,
     required this.phoneNumber,
-  });
+  }) : super(key: key);
 
   @override
   State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
@@ -23,6 +22,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   final List<TextEditingController> _controllers =
   List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+
+  bool _isLoading = false;
 
   void _onOtpChanged(String value, int index) {
     if (value.length == 1 && index < 5) {
@@ -44,6 +45,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   void _verifyOtp() async {
     String otp = _controllers.map((e) => e.text).join();
     if (otp.length == 6) {
+      setState(() {
+        _isLoading = true;
+      });
       try {
         final credential = PhoneAuthProvider.credential(
           verificationId: widget.verificationId,
@@ -51,15 +55,23 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         );
         await FirebaseAuth.instance.signInWithCredential(credential);
 
-        Navigator.pushReplacementNamed(context, '/home'); // or your main screen
+        // Navigate to home
+        Navigator.pushReplacementNamed(context, '/home');
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Invalid OTP: $e")),
         );
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
       }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Enter 6-digit OTP")),
+      );
     }
   }
-
 
   @override
   void dispose() {
@@ -75,6 +87,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   Widget _buildOtpBox(int index) {
     return SizedBox(
       width: 50,
+      height: 60,
       child: RawKeyboardListener(
         focusNode: FocusNode(),
         onKey: (event) => _onBackspacePressed(index, event),
@@ -84,10 +97,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           keyboardType: TextInputType.number,
           maxLength: 1,
           textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           decoration: InputDecoration(
             counterText: '',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.grey),
             ),
           ),
           onChanged: (value) => _onOtpChanged(value, index),
@@ -99,21 +114,36 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("OTP Verification")),
+      backgroundColor: Colors.white,
+      appBar: AppBar(title: const Text("OTP Verification Login")),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            Text("Enter OTP sent to ${widget.phoneNumber}"),
+            const SizedBox(height: 20),
+            Text(
+              "Enter OTP sent to ${widget.phoneNumber}",
+              style: const TextStyle(fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 32),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: List.generate(6, _buildOtpBox),
             ),
-            const SizedBox(height: 32),
-            ElevatedButton(
+            const SizedBox(height: 40),
+            _isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
               onPressed: _verifyOtp,
-              child: const Text("Verify OTP"),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 40, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text("Verify OTP",
+                  style: TextStyle(fontSize: 16)),
             ),
           ],
         ),

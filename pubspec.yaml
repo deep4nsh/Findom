@@ -14,6 +14,7 @@ dependencies:
   firebase_core: ^2.30.0
   firebase_auth: ^4.17.4
   cloud_firestore: ^4.14.0
+  shared_preferences: ^2.2.2
 
 
   # UI & Icons
@@ -34,9 +35,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-
-  # Optional: Assets (images, fonts, etc.)
-  # assets:
-  #   - assets/images/
-  #   - assets/icons/
+  assets:
+    - assets/images/onboard1.png
+    - assets/images/onboard2.png
+    - assets/images/onboard3.png
