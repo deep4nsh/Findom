@@ -1,10 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:findom/services/theme_provider.dart';
 import 'package:findom/screens/auth/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:findom/screens/custom_drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,32 +12,58 @@ class HomeScreen extends StatefulWidget {
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
+
 void handleDrawerSelection(String category) {
-  // Handle navigation or logic here
   debugPrint("Selected category: $category");
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Widget buildDrawerTile(IconData icon, String title, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-      ),
-    );
-  }
   bool hasNewNotification = true;
   bool isDarkMode = false;
   String userName = "Loading...";
+  List<String> tasks = [];
+  Map<String, bool> taskStatus = {};
+  Timer? resetTimer;
+
   @override
   void initState() {
     super.initState();
     fetchUserName();
     loadDarkModePreference();
+    loadTasks();
+    scheduleMidnightReset();
+  }
+
+  void scheduleMidnightReset() {
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final diff = tomorrow.difference(now);
+    resetTimer = Timer(diff, () {
+      setState(() {
+        taskStatus.updateAll((key, value) => false);
+      });
+      saveTasks();
+      scheduleMidnightReset(); // reschedule for next day
+    });
+  }
+
+  Future<void> loadTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedTasks = prefs.getStringList('tasks') ?? ["Submit Form 10E", "Pay Advance Tax", "File GSTR-3B"];
+    final storedStatus = prefs.getStringList('taskStatus') ?? List.filled(storedTasks.length, "false");
+
+    setState(() {
+      tasks = storedTasks;
+      taskStatus = {
+        for (int i = 0; i < tasks.length; i++) tasks[i]: storedStatus[i] == "true"
+      };
+    });
+  }
+
+  Future<void> saveTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('tasks', tasks);
+    await prefs.setStringList('taskStatus', tasks.map((e) => taskStatus[e]! ? "true" : "false").toList());
   }
 
   Future<void> loadDarkModePreference() async {
@@ -52,13 +78,6 @@ class _HomeScreenState extends State<HomeScreen> {
     prefs.setBool('isDarkMode', value);
   }
 
-
-  String getGreetingMessage() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
-  }
   Future<void> fetchUserName() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
@@ -69,10 +88,37 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  String getGreetingMessage() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  Widget buildDrawerTile(IconData icon, String title, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    resetTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // ✅ Add this return
-      drawer: Drawer( // ✅ Move inside Scaffold properly
+    return Scaffold(
+      backgroundColor: isDarkMode ? Colors.grey[900] : const Color(0xFFF4F6FA),
+      drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -97,7 +143,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-
             buildDrawerTile(Icons.account_balance, 'Income Tax', () {}),
             buildDrawerTile(Icons.receipt_long, 'GST', () {}),
             buildDrawerTile(Icons.business_center, 'Business Formation', () {}),
@@ -108,7 +153,6 @@ class _HomeScreenState extends State<HomeScreen> {
             buildDrawerTile(Icons.account_tree, 'Govt Schemes & Benefits', () {}),
             buildDrawerTile(Icons.newspaper, 'Financial News & Updates', () {}),
             buildDrawerTile(Icons.money_off, 'Debt Management', () {}),
-
             const Divider(),
             buildDrawerTile(Icons.person_outline, 'Profile', () {}),
             buildDrawerTile(Icons.logout, 'Logout', () async {
@@ -120,7 +164,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               }
             }),
-
             const Divider(),
             darkModeToggle(),
           ],
@@ -208,28 +251,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // -------------------------------------------
-  // Components below
-  // -------------------------------------------
-
-  Widget searchBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: TextField(
-        decoration: InputDecoration(
-          prefixIcon: const Icon(Icons.search),
-          hintText: "Search tax info, deadlines...",
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
+  Widget searchBar() => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 12),
+    child: TextField(
+      decoration: InputDecoration(
+        prefixIcon: const Icon(Icons.search),
+        hintText: "Search tax info, deadlines...",
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
       ),
-    );
-  }
+    ),
+  );
 
   Widget carouselBanner() {
     return SizedBox(
@@ -244,138 +281,175 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _carouselCard(String title, Color bgColor) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: bgColor,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Center(
-        child: Text(title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      ),
-    );
-  }
-
-
-  Widget _statCard(String label, String value, IconData icon) {
-    return Expanded(
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        color: Colors.indigo.shade50,
-        margin: const EdgeInsets.all(8),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: [
-              Icon(icon, color: Colors.indigo),
-              const SizedBox(height: 6),
-              Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text(label,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _carouselCard(String title, Color bgColor) => Card(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    color: bgColor,
+    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    child: Center(
+      child: Text(title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+    ),
+  );
 
   Widget checklistSection() {
-    final tasks = ["Submit Form 10E", "Pay Advance Tax", "File GSTR-3B"];
+    final today = DateTime.now();
+    final formattedDate = "${today.day}/${today.month}/${today.year}";
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("📝 Today's Checklist",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        Row(
+          children: [
+            const Text("📝 Today's Checklist",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Spacer(),
+            Text(formattedDate, style: TextStyle(color: Colors.grey.shade600)),
+          ],
+        ),
         const SizedBox(height: 8),
-        ...tasks.map((task) => CheckboxListTile(
-          title: Text(task),
-          value: false,
-          onChanged: (_) {},
-          controlAffinity: ListTileControlAffinity.leading,
+        ...tasks.map((task) => Dismissible(
+          key: Key(task),
+          direction: DismissDirection.endToStart,
+          onDismissed: (_) {
+            setState(() {
+              tasks.remove(task);
+              taskStatus.remove(task);
+            });
+            saveTasks();
+          },
+          background: Container(
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 16),
+            color: Colors.red,
+            child: const Icon(Icons.delete, color: Colors.white),
+          ),
+          child: CheckboxListTile(
+            title: Text(task),
+            value: taskStatus[task] ?? false,
+            onChanged: (value) {
+              setState(() {
+                taskStatus[task] = value!;
+              });
+              saveTasks();
+            },
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
         )),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (ctx) {
+                  final controller = TextEditingController();
+                  return AlertDialog(
+                    title: const Text("Add New Task"),
+                    content: TextField(
+                      controller: controller,
+                      decoration: const InputDecoration(hintText: "Task description"),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text("Cancel"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          final newTask = controller.text.trim();
+                          if (newTask.isNotEmpty) {
+                            setState(() {
+                              tasks.add(newTask);
+                              taskStatus[newTask] = false;
+                            });
+                            saveTasks();
+                            Navigator.pop(ctx);
+                          }
+                        },
+                        child: const Text("Add"),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+            icon: const Icon(Icons.add),
+            label: const Text("Add Task"),
+          ),
+        )
       ],
     );
   }
 
-  Widget financialCalendar() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: const Icon(Icons.calendar_today, color: Colors.indigo),
-        title: const Text("Next Deadline: 31st July"),
-        subtitle: const Text("ITR Filing (AY 2025-26)"),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: () {},
-      ),
-    );
-  }
-
-  Widget progressTracker() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("🧭 Your Filing Journey",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: 0.6,
-          color: Colors.green,
-          backgroundColor: Colors.grey.shade300,
-        ),
-        const SizedBox(height: 6),
-        const Text("Step 3 of 5: Linked PAN to Aadhaar"),
-      ],
-    );
-  }
-
-  Widget resourcesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("📚 Recommended Resources",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const SizedBox(height: 10),
-        _resourceTile("📘 Tax Guide eBook", "PDF format", Icons.picture_as_pdf),
-        _resourceTile("🎥 Budget 2025 Explainer", "Video from CA Gaurav",
-            Icons.play_circle),
-      ],
-    );
-  }
-
-  Widget _resourceTile(String title, String subtitle, IconData icon) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.indigo),
-      title: Text(title),
-      subtitle: Text(subtitle),
+  Widget financialCalendar() => Card(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: ListTile(
+      leading: const Icon(Icons.calendar_today, color: Colors.indigo),
+      title: const Text("Next Deadline: 31st July"),
+      subtitle: const Text("ITR Filing (AY 2025-26)"),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
       onTap: () {},
-    );
-  }
+    ),
+  );
 
-  Widget caProfileSection() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: const CircleAvatar(
-          backgroundImage: AssetImage('assets/images/ca_avatar.jpg'),
-        ),
-        title: const Text("CA Ramesh Mehta"),
-        subtitle: const Text("Mehta & Associates | 12 years exp."),
-        trailing: IconButton(
-          icon: const Icon(Icons.phone),
-          onPressed: () {},
-        ),
+  Widget progressTracker() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text("🧭 Your Filing Journey",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      const SizedBox(height: 8),
+      LinearProgressIndicator(
+        value: 0.6,
+        color: Colors.green,
+        backgroundColor: Colors.grey.shade300,
       ),
-    );
-  }
+      const SizedBox(height: 6),
+      const Text("Step 3 of 5: Linked PAN to Aadhaar"),
+    ],
+  );
 
-  Widget chatbotButton() {
-    return FloatingActionButton.extended(
-      onPressed: () {},
-      icon: const Icon(Icons.chat),
-      label: const Text("Ask Your CA"),
-      backgroundColor: Colors.indigo,
-    );
-  }
+  Widget resourcesSection() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text("📚 Recommended Resources",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      const SizedBox(height: 10),
+      _resourceTile("📘 Tax Guide eBook", "PDF format", Icons.picture_as_pdf),
+      _resourceTile("🎥 Budget 2025 Explainer", "Video from CA Gaurav", Icons.play_circle),
+    ],
+  );
+
+  Widget _resourceTile(String title, String subtitle, IconData icon) =>
+      ListTile(
+        leading: Icon(icon, color: Colors.indigo),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        onTap: () {},
+      );
+
+  Widget caProfileSection() => Card(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: ListTile(
+      leading: const CircleAvatar(
+        backgroundImage: AssetImage('assets/images/ca_avatar.jpg'),
+      ),
+      title: const Text("CA Ramesh Mehta"),
+      subtitle: const Text("Mehta & Associates | 12 years exp."),
+      trailing: IconButton(
+        icon: const Icon(Icons.phone),
+        onPressed: () {},
+      ),
+    ),
+  );
+
+  Widget chatbotButton() => FloatingActionButton.extended(
+    onPressed: () {},
+    icon: const Icon(Icons.chat),
+    label: const Text("Ask Your CA"),
+    backgroundColor: Colors.indigo,
+  );
 
   Widget darkModeToggle() {
     return SwitchListTile(
@@ -385,6 +459,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           isDarkMode = value;
         });
+        saveDarkModePreference(value);
       },
     );
   }
