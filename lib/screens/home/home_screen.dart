@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:findom/services/theme_provider.dart';
 import 'package:findom/screens/auth/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:findom/screens/custom_drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,8 +12,24 @@ class HomeScreen extends StatefulWidget {
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
+void handleDrawerSelection(String category) {
+  // Handle navigation or logic here
+  debugPrint("Selected category: $category");
+}
 
 class _HomeScreenState extends State<HomeScreen> {
+  Widget buildDrawerTile(IconData icon, String title, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+      ),
+    );
+  }
   bool hasNewNotification = true;
   bool isDarkMode = false;
   String userName = "Loading...";
@@ -54,9 +71,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: isDarkMode ? Colors.grey[900] : const Color(0xFFF4F6FA),
-      drawer: Drawer(
+    return Scaffold( // ✅ Add this return
+      drawer: Drawer( // ✅ Move inside Scaffold properly
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -68,40 +84,50 @@ class _HomeScreenState extends State<HomeScreen> {
                   end: Alignment.bottomRight,
                 ),
               ),
-              child: Text(
-                'Navigation',
-                style: TextStyle(color: Colors.white, fontSize: 24),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Text(
+                  'Findom Menu',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: () async {
-                await FirebaseAuth.instance.signOut();
-                if (context.mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: () {},
-            ),
-            darkModeToggle()
+
+            buildDrawerTile(Icons.account_balance, 'Income Tax', () {}),
+            buildDrawerTile(Icons.receipt_long, 'GST', () {}),
+            buildDrawerTile(Icons.business_center, 'Business Formation', () {}),
+            buildDrawerTile(Icons.attach_money, 'Salary Planning', () {}),
+            buildDrawerTile(Icons.account_balance_wallet, 'Loans & Credits', () {}),
+            buildDrawerTile(Icons.school, "Students' Corner", () {}),
+            buildDrawerTile(Icons.health_and_safety, 'Insurance', () {}),
+            buildDrawerTile(Icons.account_tree, 'Govt Schemes & Benefits', () {}),
+            buildDrawerTile(Icons.newspaper, 'Financial News & Updates', () {}),
+            buildDrawerTile(Icons.money_off, 'Debt Management', () {}),
+
+            const Divider(),
+            buildDrawerTile(Icons.person_outline, 'Profile', () {}),
+            buildDrawerTile(Icons.logout, 'Logout', () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+              }
+            }),
+
+            const Divider(),
+            darkModeToggle(),
           ],
         ),
       ),
       appBar: AppBar(
-        elevation: 0,
+        elevation: 1,
         backgroundColor: Colors.transparent,
         foregroundColor: isDarkMode ? Colors.white : Colors.black87,
         title: Row(
@@ -109,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
             GestureDetector(
               onTap: () => Scaffold.of(context).openDrawer(),
               child: const CircleAvatar(
-                backgroundImage: AssetImage('assets/images/profile.jpg'),
+                backgroundImage: AssetImage('assets/images/profile.png'),
                 radius: 20,
               ),
             ),
@@ -165,8 +191,6 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             searchBar(),
             carouselBanner(),
-            const SizedBox(height: 8),
-            quickStats(),
             const SizedBox(height: 12),
             checklistSection(),
             const SizedBox(height: 12),
@@ -232,16 +256,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget quickStats() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _statCard("Portfolio", "₹1,20,000", Icons.account_balance_wallet),
-        _statCard("Today’s Gain", "+₹2,300", Icons.trending_up),
-        _statCard("Pending", "₹14,000", Icons.hourglass_bottom),
-      ],
-    );
-  }
 
   Widget _statCard(String label, String value, IconData icon) {
     return Expanded(
