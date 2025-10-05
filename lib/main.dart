@@ -6,6 +6,8 @@ import 'package:findom/services/theme_provider.dart';
 import 'package:findom/screens/auth/login_screen.dart';
 import 'package:findom/screens/auth/otp_verification_screen.dart';
 import 'package:findom/screens/home/home_screen.dart';
+//import "io.flutter.embedding.android.FlutterActivity";
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,7 +29,7 @@ class MyApp extends StatelessWidget {
 
     // Check if user is already logged in
     final User? user = FirebaseAuth.instance.currentUser;
-
+    
     return MaterialApp(
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),

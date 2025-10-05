@@ -8,7 +8,7 @@ class AuthService {
     try {
       return await _auth.createUserWithEmailAndPassword(email: email, password: password);
     } catch (e) {
-      rethrow; // You can customize error handling here if needed
+      rethrow;
     }
   }
 

@@ -10,28 +10,40 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Firebase core + auth
-  firebase_core: ^2.30.0
+  # Firebase
+  firebase_core: ^2.27.0
   firebase_auth: ^4.17.4
   cloud_firestore: ^4.14.0
+  firebase_messaging: ^14.7.10
+
+  # Shared Preferences
   shared_preferences: ^2.2.2
 
+  # Notifications
+  flutter_local_notifications: ^17.1.2
 
-  # UI & Icons
+  # Text to Speech and Speech Recognition
+  flutter_tts: ^3.6.3
+  #speech_to_text: 6.6.3  ✅ This version avoids Android build errors with Flutter 3.8+
+
+  # Animation
+  avatar_glow: ^2.0.2
+
+  # UI & Fonts
   cupertino_icons: ^1.0.8
-  google_fonts: ^6.2.1
+  google_fonts: ^6.1.0
 
-  # State management (optional but useful)
+  # State management
   provider: ^6.1.2
 
-  # Navigation, forms, validations (optional for clean UX)
-  flutter_hooks: ^0.20.5
+  # Form validation and hooks
+  flutter_hooks: ^0.20.3
   form_field_validator: ^1.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^2.0.3
 
 flutter:
   uses-material-design: true
@@ -39,3 +51,6 @@ flutter:
     - assets/images/onboard1.png
     - assets/images/onboard2.png
     - assets/images/onboard3.png
+    - assets/images/mascot.gif
+    - assets/images/profile.png
+    - assets/images/ca_avatar.png

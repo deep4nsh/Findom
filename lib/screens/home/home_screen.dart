@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:findom/services/theme_provider.dart';
 import 'package:findom/screens/auth/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,6 +25,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<String> tasks = [];
   Map<String, bool> taskStatus = {};
   Timer? resetTimer;
+  bool _isListening = false;
+  String _spokenText = "";
 
   @override
   void initState() {
@@ -32,6 +35,12 @@ class _HomeScreenState extends State<HomeScreen> {
     loadDarkModePreference();
     loadTasks();
     scheduleMidnightReset();
+    NotificationService.initialize(context);
+  }
+
+  void _listen() async {
+    // Removed speech-to-text logic, since TTS was the only thing using it
+    setState(() => _isListening = !_isListening);
   }
 
   void scheduleMidnightReset() {
@@ -444,12 +453,29 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   );
 
-  Widget chatbotButton() => FloatingActionButton.extended(
-    onPressed: () {},
-    icon: const Icon(Icons.chat),
-    label: const Text("Ask Your CA"),
-    backgroundColor: Colors.indigo,
-  );
+  Widget chatbotButton() {
+    return GestureDetector(
+      onTap: _listen,
+      child: Container(
+        width: 70,
+        height: 70,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          image: const DecorationImage(
+            image: AssetImage('assets/images/ca_mascot.png'),
+            fit: BoxFit.cover,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget darkModeToggle() {
     return SwitchListTile(
