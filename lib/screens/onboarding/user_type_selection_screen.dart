@@ -3,37 +3,47 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:findom/models/user_model.dart';
 import 'package:findom/models/profile_model.dart';
+import 'package:findom/models/company_model.dart';
 import 'package:findom/screens/home/home_screen.dart';
 
 class UserTypeSelectionScreen extends StatelessWidget {
   const UserTypeSelectionScreen({super.key});
 
-  Future<void> _createUserAndProfile(BuildContext context, UserType userType) async {
+  Future<void> _createUserDocuments(BuildContext context, UserType userType) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // Create the AppUser document
+    final batch = FirebaseFirestore.instance.batch();
+
+    // 1. Create the AppUser document
+    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
     final appUser = AppUser(
       uid: user.uid,
       phoneNumber: user.phoneNumber ?? '',
       userType: userType,
     );
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .set(appUser.toFirestore());
+    batch.set(userRef, appUser.toFirestore());
 
-    // Create the Profile document
-    final profile = Profile(
-      uid: user.uid,
-      fullName: user.displayName ?? 'New User', // Placeholder name
-    );
-    await FirebaseFirestore.instance
-        .collection('profiles')
-        .doc(user.uid)
-        .set(profile.toFirestore());
+    // 2. Create either a Profile or a Company document
+    if (userType == UserType.company) {
+      final companyRef = FirebaseFirestore.instance.collection('companies').doc(user.uid);
+      final company = Company(
+        id: user.uid,
+        name: 'New Company', // Placeholder name
+      );
+      batch.set(companyRef, company.toFirestore());
+    } else {
+      final profileRef = FirebaseFirestore.instance.collection('profiles').doc(user.uid);
+      final profile = Profile(
+        uid: user.uid,
+        fullName: user.displayName ?? 'New User', // Placeholder name
+      );
+      batch.set(profileRef, profile.toFirestore());
+    }
 
-    // Navigate to the home screen
+    await batch.commit();
+
+    // 3. Navigate to the home screen
     if (context.mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -84,6 +94,13 @@ class UserTypeSelectionScreen extends StatelessWidget {
                 label: 'I am looking for information',
                 userType: UserType.general,
               ),
+              const Divider(height: 32),
+               _buildUserTypeButton(
+                context,
+                icon: Icons.business,
+                label: 'Register as a Company',
+                userType: UserType.company,
+              ),
             ],
           ),
         ),
@@ -95,7 +112,7 @@ class UserTypeSelectionScreen extends StatelessWidget {
     return ElevatedButton.icon(
       icon: Icon(icon),
       label: Text(label),
-      onPressed: () => _createUserAndProfile(context, userType),
+      onPressed: () => _createUserDocuments(context, userType),
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16),
         textStyle: const TextStyle(fontSize: 16),

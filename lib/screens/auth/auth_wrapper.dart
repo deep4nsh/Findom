@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:findom/models/user_model.dart';
 import 'package:findom/screens/home/home_screen.dart';
 import 'package:findom/screens/onboarding/user_type_selection_screen.dart';
+import 'package:findom/screens/jobs/company_dashboard_screen.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
@@ -27,12 +29,18 @@ class AuthWrapper extends StatelessWidget {
           return const Scaffold(body: Center(child: Text("Something went wrong")));
         }
 
-        // If the document exists, the user has a profile.
-        if (snapshot.data!.exists) {
-          return const HomeScreen();
-        } else {
-          // If the document does not exist, it's a new user.
+        // If the document does not exist, it's a new user.
+        if (!snapshot.data!.exists) {
           return const UserTypeSelectionScreen();
+        }
+
+        // Document exists, so route based on userType.
+        final appUser = AppUser.fromFirestore(snapshot.data!);
+
+        if (appUser.userType == UserType.company) {
+          return const CompanyDashboardScreen();
+        } else {
+          return const HomeScreen();
         }
       },
     );

@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum UserType { professional, student, general }
+enum UserType { professional, student, general, company }
 
 class AppUser {
   final String uid;
