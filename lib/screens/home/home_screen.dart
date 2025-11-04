@@ -12,6 +12,7 @@ import 'package:findom/screens/posts/create_post_screen.dart';
 import 'package:findom/screens/posts/comments_screen.dart';
 import 'package:findom/screens/search/search_screen.dart';
 import 'package:findom/screens/jobs/job_board_screen.dart';
+import 'package:findom/screens/find_a_pro/find_a_pro_screen.dart';
 import 'home_view_model.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -91,6 +92,9 @@ class HomeScreen extends StatelessWidget {
           }),
           buildDrawerTile(Icons.work_outline, 'Job Board', () {
             Navigator.of(context).push(MaterialPageRoute(builder: (context) => const JobBoardScreen()));
+          }),
+          buildDrawerTile(Icons.search, 'Find a Professional', () {
+             Navigator.of(context).push(MaterialPageRoute(builder: (context) => const FindAProScreen()));
           }),
           const Divider(),
           buildDrawerTile(Icons.logout, 'Logout', () async {
