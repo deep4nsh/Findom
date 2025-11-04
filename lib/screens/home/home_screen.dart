@@ -1,107 +1,101 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:findom/services/theme_provider.dart';
 import 'package:findom/screens/auth/login_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/notification_service.dart';
+import 'home_view_model.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-void handleDrawerSelection(String category) {
-  debugPrint("Selected category: $category");
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  bool hasNewNotification = true;
-  bool isDarkMode = false;
-  String userName = "Loading...";
-  List<String> tasks = [];
-  Map<String, bool> taskStatus = {};
-  Timer? resetTimer;
-  bool _isListening = false;
-  String _spokenText = "";
-
-  @override
-  void initState() {
-    super.initState();
-    fetchUserName();
-    loadDarkModePreference();
-    loadTasks();
-    scheduleMidnightReset();
-    NotificationService.initialize(context);
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => HomeViewModel(),
+      child: Consumer<HomeViewModel>(
+        builder: (context, model, child) {
+          return Scaffold(
+            backgroundColor: model.isDarkMode ? Colors.grey[900] : const Color(0xFFF4F6FA),
+            drawer: buildDrawer(context, model),
+            appBar: buildAppBar(context, model),
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  searchBar(),
+                  carouselBanner(),
+                  const SizedBox(height: 12),
+                  checklistSection(context, model),
+                  const SizedBox(height: 12),
+                  financialCalendar(),
+                  const SizedBox(height: 12),
+                  progressTracker(),
+                  const SizedBox(height: 12),
+                  resourcesSection(),
+                  const SizedBox(height: 12),
+                  caProfileSection(),
+                ],
+              ),
+            ),
+            floatingActionButton: chatbotButton(context, model),
+          );
+        },
+      ),
+    );
   }
 
-  void _listen() async {
-    // Removed speech-to-text logic, since TTS was the only thing using it
-    setState(() => _isListening = !_isListening);
-  }
-
-  void scheduleMidnightReset() {
-    final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    final diff = tomorrow.difference(now);
-    resetTimer = Timer(diff, () {
-      setState(() {
-        taskStatus.updateAll((key, value) => false);
-      });
-      saveTasks();
-      scheduleMidnightReset(); // reschedule for next day
-    });
-  }
-
-  Future<void> loadTasks() async {
-    final prefs = await SharedPreferences.getInstance();
-    final storedTasks = prefs.getStringList('tasks') ?? ["Submit Form 10E", "Pay Advance Tax", "File GSTR-3B"];
-    final storedStatus = prefs.getStringList('taskStatus') ?? List.filled(storedTasks.length, "false");
-
-    setState(() {
-      tasks = storedTasks;
-      taskStatus = {
-        for (int i = 0; i < tasks.length; i++) tasks[i]: storedStatus[i] == "true"
-      };
-    });
-  }
-
-  Future<void> saveTasks() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('tasks', tasks);
-    await prefs.setStringList('taskStatus', tasks.map((e) => taskStatus[e]! ? "true" : "false").toList());
-  }
-
-  Future<void> loadDarkModePreference() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      isDarkMode = prefs.getBool('isDarkMode') ?? false;
-    });
-  }
-
-  Future<void> saveDarkModePreference(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setBool('isDarkMode', value);
-  }
-
-  Future<void> fetchUserName() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      setState(() {
-        userName = doc['name'] ?? 'User';
-      });
-    }
-  }
-
-  String getGreetingMessage() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+  Drawer buildDrawer(BuildContext context, HomeViewModel model) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          const DrawerHeader(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF3E4A89), Color(0xFF6C7ABF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: Text(
+                'Findom Menu',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+          ),
+          buildDrawerTile(Icons.account_balance, 'Income Tax', () {}),
+          buildDrawerTile(Icons.receipt_long, 'GST', () {}),
+          buildDrawerTile(Icons.business_center, 'Business Formation', () {}),
+          buildDrawerTile(Icons.attach_money, 'Salary Planning', () {}),
+          buildDrawerTile(Icons.account_balance_wallet, 'Loans & Credits', () {}),
+          buildDrawerTile(Icons.school, "Students' Corner", () {}),
+          buildDrawerTile(Icons.health_and_safety, 'Insurance', () {}),
+          buildDrawerTile(Icons.account_tree, 'Govt Schemes & Benefits', () {}),
+          buildDrawerTile(Icons.newspaper, 'Financial News & Updates', () {}),
+          buildDrawerTile(Icons.money_off, 'Debt Management', () {}),
+          const Divider(),
+          buildDrawerTile(Icons.person_outline, 'Profile', () {}),
+          buildDrawerTile(Icons.logout, 'Logout', () async {
+            await FirebaseAuth.instance.signOut();
+            if (context.mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            }
+          }),
+          const Divider(),
+          darkModeToggle(model),
+        ],
+      ),
+    );
   }
 
   Widget buildDrawerTile(IconData icon, String title, VoidCallback onTap) {
@@ -117,146 +111,62 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    resetTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: isDarkMode ? Colors.grey[900] : const Color(0xFFF4F6FA),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF3E4A89), Color(0xFF6C7ABF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Align(
-                alignment: Alignment.bottomLeft,
-                child: Text(
-                  'Findom Menu',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
+  AppBar buildAppBar(BuildContext context, HomeViewModel model) {
+    return AppBar(
+      elevation: 1,
+      backgroundColor: Colors.transparent,
+      foregroundColor: model.isDarkMode ? Colors.white : Colors.black87,
+      title: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Scaffold.of(context).openDrawer(),
+            child: const CircleAvatar(
+              backgroundImage: AssetImage('assets/images/profile.png'),
+              radius: 20,
             ),
-            buildDrawerTile(Icons.account_balance, 'Income Tax', () {}),
-            buildDrawerTile(Icons.receipt_long, 'GST', () {}),
-            buildDrawerTile(Icons.business_center, 'Business Formation', () {}),
-            buildDrawerTile(Icons.attach_money, 'Salary Planning', () {}),
-            buildDrawerTile(Icons.account_balance_wallet, 'Loans & Credits', () {}),
-            buildDrawerTile(Icons.school, "Students' Corner", () {}),
-            buildDrawerTile(Icons.health_and_safety, 'Insurance', () {}),
-            buildDrawerTile(Icons.account_tree, 'Govt Schemes & Benefits', () {}),
-            buildDrawerTile(Icons.newspaper, 'Financial News & Updates', () {}),
-            buildDrawerTile(Icons.money_off, 'Debt Management', () {}),
-            const Divider(),
-            buildDrawerTile(Icons.person_outline, 'Profile', () {}),
-            buildDrawerTile(Icons.logout, 'Logout', () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
-              }
-            }),
-            const Divider(),
-            darkModeToggle(),
-          ],
-        ),
-      ),
-      appBar: AppBar(
-        elevation: 1,
-        backgroundColor: Colors.transparent,
-        foregroundColor: isDarkMode ? Colors.white : Colors.black87,
-        title: Row(
-          children: [
-            GestureDetector(
-              onTap: () => Scaffold.of(context).openDrawer(),
-              child: const CircleAvatar(
-                backgroundImage: AssetImage('assets/images/profile.png'),
-                radius: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(getGreetingMessage(),
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
-                Text(userName,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.indigo.shade700,
-                    )),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          Stack(
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                onPressed: () {
-                  setState(() {
-                    hasNewNotification = false;
-                  });
-                },
-              ),
-              if (hasNewNotification)
-                Positioned(
-                  right: 10,
-                  top: 10,
-                  child: Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1),
-                    ),
-                  ),
-                ),
+              Text(model.getGreetingMessage(),
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+              Text(model.userName,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.indigo.shade700,
+                  )),
             ],
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      actions: [
+        Stack(
           children: [
-            searchBar(),
-            carouselBanner(),
-            const SizedBox(height: 12),
-            checklistSection(),
-            const SizedBox(height: 12),
-            financialCalendar(),
-            const SizedBox(height: 12),
-            progressTracker(),
-            const SizedBox(height: 12),
-            resourcesSection(),
-            const SizedBox(height: 12),
-            caProfileSection(),
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: () {
+                model.setNotification(false);
+              },
+            ),
+            if (model.hasNewNotification)
+              Positioned(
+                right: 10,
+                top: 10,
+                child: Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1),
+                  ),
+                ),
+              ),
           ],
         ),
-      ),
-      floatingActionButton: chatbotButton(),
+      ],
     );
   }
 
@@ -300,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   );
 
-  Widget checklistSection() {
+  Widget checklistSection(BuildContext context, HomeViewModel model) {
     final today = DateTime.now();
     final formattedDate = "${today.day}/${today.month}/${today.year}";
 
@@ -316,15 +226,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        ...tasks.map((task) => Dismissible(
+        ...model.tasks.map((task) => Dismissible(
           key: Key(task),
           direction: DismissDirection.endToStart,
           onDismissed: (_) {
-            setState(() {
-              tasks.remove(task);
-              taskStatus.remove(task);
-            });
-            saveTasks();
+            model.removeTask(task);
           },
           background: Container(
             alignment: Alignment.centerRight,
@@ -334,12 +240,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: CheckboxListTile(
             title: Text(task),
-            value: taskStatus[task] ?? false,
+            value: model.taskStatus[task] ?? false,
             onChanged: (value) {
-              setState(() {
-                taskStatus[task] = value!;
-              });
-              saveTasks();
+              model.toggleTaskStatus(task, value);
             },
             controlAffinity: ListTileControlAffinity.leading,
           ),
@@ -367,15 +270,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       ElevatedButton(
                         onPressed: () {
-                          final newTask = controller.text.trim();
-                          if (newTask.isNotEmpty) {
-                            setState(() {
-                              tasks.add(newTask);
-                              taskStatus[newTask] = false;
-                            });
-                            saveTasks();
-                            Navigator.pop(ctx);
-                          }
+                          model.addTask(controller.text.trim());
+                          Navigator.pop(ctx);
                         },
                         child: const Text("Add"),
                       ),
@@ -453,9 +349,9 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   );
 
-  Widget chatbotButton() {
+  Widget chatbotButton(BuildContext context, HomeViewModel model) {
     return GestureDetector(
-      onTap: _listen,
+      onTap: () {},
       child: Container(
         width: 70,
         height: 70,
@@ -477,15 +373,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget darkModeToggle() {
+  Widget darkModeToggle(HomeViewModel model) {
     return SwitchListTile(
-      value: isDarkMode,
+      value: model.isDarkMode,
       title: const Text("Dark Mode"),
       onChanged: (value) {
-        setState(() {
-          isDarkMode = value;
-        });
-        saveDarkModePreference(value);
+        model.saveDarkModePreference(value);
       },
     );
   }

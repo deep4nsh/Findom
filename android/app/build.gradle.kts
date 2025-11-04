@@ -23,8 +23,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.findom"
-        minSdk = 23
+        applicationId = "com.findom"
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

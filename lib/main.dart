@@ -6,15 +6,15 @@ import 'package:findom/services/theme_provider.dart';
 import 'package:findom/screens/auth/login_screen.dart';
 import 'package:findom/screens/auth/otp_verification_screen.dart';
 import 'package:findom/screens/home/home_screen.dart';
-//import "io.flutter.embedding.android.FlutterActivity";
-
+import 'package:findom/services/locator.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  setupLocator(); // Initialize the service locator
   runApp(
     ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+      create: (_) => locator<ThemeProvider>(),
       child: const MyApp(),
     ),
   );
@@ -27,25 +27,31 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
-    // Check if user is already logged in
-    final User? user = FirebaseAuth.instance.currentUser;
-    
     return MaterialApp(
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
-      themeMode:
-      themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       debugShowCheckedModeBanner: false,
 
-      // ✅ Conditional home screen
-      home: user != null ? HomeScreen() : LoginScreen(),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          if (snapshot.hasData) {
+            return const HomeScreen();
+          }
+          return const LoginScreen();
+        },
+      ),
 
       routes: {
         '/otp': (context) => const OtpVerificationScreen(
           verificationId: '',
           phoneNumber: '',
         ),
-        '/home': (context) => HomeScreen(),
+        '/home': (context) => const HomeScreen(),
       },
     );
   }
