@@ -7,6 +7,7 @@ import 'package:findom/screens/auth/login_screen.dart';
 import 'package:findom/screens/auth/otp_verification_screen.dart';
 import 'package:findom/screens/home/home_screen.dart';
 import 'package:findom/services/locator.dart';
+import 'package:findom/screens/auth/auth_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,8 +41,10 @@ class MyApp extends StatelessWidget {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
           if (snapshot.hasData) {
-            return const HomeScreen();
+            // User is logged in, so go to the AuthWrapper
+            return const AuthWrapper();
           }
+          // User is not logged in
           return const LoginScreen();
         },
       ),

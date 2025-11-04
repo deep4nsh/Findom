@@ -31,11 +31,14 @@ dependencies:
 
   # UI & Fonts
   cupertino_icons: ^1.0.8
-  google_fonts: ^6.1.0
+  google_fonts: ^4.0.4 # Downgraded to resolve http conflict
 
   # State management
   provider: ^6.1.2
   get_it: ^7.6.7
+
+  # Search
+  algolia: ^1.1.2 # Using the community package to avoid dependency conflicts
 
   # Form validation and hooks
   flutter_hooks: ^0.20.3
