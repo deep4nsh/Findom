@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Rule Group 1: User & Profile Data
+    // ---------------------------------
+    match /users/{userId} {
+      allow read, update: if request.auth.uid == userId;
+      allow create: if request.auth.uid == userId;
+
+      // Followers sub-collection rules
+      match /followers/{followerId} {
+        allow read: if request.auth != null;
+        allow create, delete: if request.auth.uid == followerId;
+      }
+
+      // Following sub-collection rules
+      match /following/{followingId} {
+        allow read: if request.auth != null;
+        allow create, delete: if request.auth.uid == userId;
+      }
+    }
+
+    match /profiles/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth.uid == userId;
+      allow delete: if false; // Disallow deleting profiles for now
+    }
+    
+    // Rule Group 2: Posts & Comments Data
+    // ------------------------------------
+    match /posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth.uid == request.resource.data.authorId;
+      allow update, delete: if request.auth.uid == resource.data.authorId;
+      
+      // Comments sub-collection rules
+      match /comments/{commentId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth.uid == request.resource.data.authorId;
+        allow update, delete: if request.auth.uid == resource.data.authorId;
+      }
+    }
+
+    // Rule Group 3: Jobs & Companies Data
+    // ---------------------------------------
+    match /companies/{companyId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth.uid == companyId;
+    }
+
+    match /jobs/{jobId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth.uid == request.resource.data.companyId;
+      allow update, delete: if request.auth.uid == resource.data.companyId;
+    }
+
+    // Rule Group 4: Subscriptions Data
+    // ----------------------------------
+    match /subscriptions/{userId} {
+        // Only the user or a backend admin role can read/write subscription status.
+        // This rule will be refined when a payment system is fully integrated.
+        allow read, write: if request.auth.uid == userId;
+    }
+  }
+}

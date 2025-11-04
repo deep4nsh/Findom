@@ -1,1 +1,65 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"findom-124","appId":"1:1044287144101:android:04173c0cb75265b4f0cd4c","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"findom-124","configurations":{"android":"1:1044287144101:android:04173c0cb75265b4f0cd4c"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": {
+      "indexes": [
+        {
+          "collectionGroup": "posts",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "authorId",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "timestamp",
+              "order": "DESCENDING"
+            }
+          ]
+        },
+        {
+          "collectionGroup": "comments",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "postId",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "timestamp",
+              "order": "DESCENDING"
+            }
+          ]
+        },
+        {
+          "collectionGroup": "jobs",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "companyId",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "postedDate",
+              "order": "DESCENDING"
+            }
+          ]
+        },
+        {
+          "collectionGroup": "users",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "userType",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "isVerified",
+              "order": "ASCENDING"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
