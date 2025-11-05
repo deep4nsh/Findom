@@ -27,16 +27,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<Map<String, dynamic>> _fetchProfileData() async {
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
-    final profileDoc = await FirebaseFirestore.instance.collection('profiles').doc(widget.userId).get();
+    final userIdToFetch = widget.userId;
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
-    if (!userDoc.exists || !profileDoc.exists) {
-      throw Exception('User data not found!');
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userIdToFetch).get();
+    DocumentSnapshot profileDoc = await FirebaseFirestore.instance.collection('profiles').doc(userIdToFetch).get();
+    
+    AppUser appUser;
+    Profile profile;
+
+    // --- Corrected Logic --- //
+
+    if (userIdToFetch == currentUserId) {
+      // A. Viewing your OWN profile: Perform self-healing if needed.
+      if (!userDoc.exists) {
+        appUser = AppUser(uid: userIdToFetch, userType: UserType.general);
+        await FirebaseFirestore.instance.collection('users').doc(userIdToFetch).set(appUser.toFirestore());
+      } else {
+        appUser = AppUser.fromFirestore(userDoc);
+      }
+
+      if (!profileDoc.exists) {
+        profile = Profile(uid: userIdToFetch, fullName: "User ${userIdToFetch.substring(0, 5)}...");
+        await FirebaseFirestore.instance.collection('profiles').doc(userIdToFetch).set(profile.toFirestore());
+      } else {
+        profile = Profile.fromFirestore(profileDoc);
+      }
+    } else {
+      // B. Viewing SOMEONE ELSE's profile: Do NOT self-heal. Handle gracefully.
+      if (!userDoc.exists) {
+        throw Exception('This user account no longer exists.');
+      }
+      appUser = AppUser.fromFirestore(userDoc);
+
+      if (!profileDoc.exists) {
+        // Create a placeholder profile in-memory WITHOUT writing to the database.
+        profile = Profile(uid: userIdToFetch, fullName: "Profile Incomplete", headline: "This user has not set up their profile yet.");
+      } else {
+        profile = Profile.fromFirestore(profileDoc);
+      }
     }
 
     return {
-      'user': AppUser.fromFirestore(userDoc),
-      'profile': Profile.fromFirestore(profileDoc),
+      'user': appUser,
+      'profile': profile,
     };
   }
 
@@ -60,12 +94,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (snapshot.hasError) {
           return Scaffold(
             appBar: AppBar(title: const Text('Error')),
-            body: Center(child: Text('Error: ${snapshot.error}')),
+            body: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Center(child: Text('An error occurred while loading the profile: \n${snapshot.error}')),
+            ),
           );
         }
         if (!snapshot.hasData) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Not Found')),            body: const Center(child: Text('Profile not found.')),
+            appBar: AppBar(title: const Text('Not Found')),
+            body: const Center(child: Text('Profile data could not be loaded.')),
           );
         }
 
@@ -123,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, AppUser user, Profile profile) {
+   Widget _buildHeader(BuildContext context, AppUser user, Profile profile) {
     return Row(
       children: [
         CircleAvatar(
@@ -136,29 +174,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
               : null,
         ),
         const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  profile.fullName,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                if (user.isVerified)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 8.0),
-                    child: Icon(Icons.verified, color: Colors.blue, size: 20),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      profile.fullName,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-              ],
-            ),
-            Text(user.userType.toString().split('.').last.toUpperCase()),
-             if (widget.userId != FirebaseAuth.instance.currentUser?.uid)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: _buildFollowButton(),
-              )
-          ],
+                  if (user.isVerified)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8.0),
+                      child: Icon(Icons.verified, color: Colors.blue, size: 20),
+                    ),
+                ],
+              ),
+              Text(user.userType.toString().split('.').last.toUpperCase()),
+              if (widget.userId != FirebaseAuth.instance.currentUser?.uid)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: _buildFollowButton(),
+                )
+            ],
+          ),
         ),
       ],
     );
@@ -175,12 +218,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildFollowButton() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return const SizedBox.shrink();
+
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
           .doc(widget.userId)
           .collection('followers')
-          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .doc(currentUser.uid)
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
