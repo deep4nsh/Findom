@@ -26,51 +26,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _profileData = _fetchProfileData();
   }
 
+  // Corrected: Removed self-healing logic. Responsibility is now with AuthWrapper.
   Future<Map<String, dynamic>> _fetchProfileData() async {
-    final userIdToFetch = widget.userId;
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
+    final profileDoc = await FirebaseFirestore.instance.collection('profiles').doc(widget.userId).get();
 
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userIdToFetch).get();
-    DocumentSnapshot profileDoc = await FirebaseFirestore.instance.collection('profiles').doc(userIdToFetch).get();
-    
-    AppUser appUser;
-    Profile profile;
-
-    // --- Corrected Logic --- //
-
-    if (userIdToFetch == currentUserId) {
-      // A. Viewing your OWN profile: Perform self-healing if needed.
-      if (!userDoc.exists) {
-        appUser = AppUser(uid: userIdToFetch, userType: UserType.general);
-        await FirebaseFirestore.instance.collection('users').doc(userIdToFetch).set(appUser.toFirestore());
-      } else {
-        appUser = AppUser.fromFirestore(userDoc);
-      }
-
-      if (!profileDoc.exists) {
-        profile = Profile(uid: userIdToFetch, fullName: "User ${userIdToFetch.substring(0, 5)}...");
-        await FirebaseFirestore.instance.collection('profiles').doc(userIdToFetch).set(profile.toFirestore());
-      } else {
-        profile = Profile.fromFirestore(profileDoc);
-      }
-    } else {
-      // B. Viewing SOMEONE ELSE's profile: Do NOT self-heal. Handle gracefully.
-      if (!userDoc.exists) {
-        throw Exception('This user account no longer exists.');
-      }
-      appUser = AppUser.fromFirestore(userDoc);
-
-      if (!profileDoc.exists) {
-        // Create a placeholder profile in-memory WITHOUT writing to the database.
-        profile = Profile(uid: userIdToFetch, fullName: "Profile Incomplete", headline: "This user has not set up their profile yet.");
-      } else {
-        profile = Profile.fromFirestore(profileDoc);
-      }
+    if (!userDoc.exists || !profileDoc.exists) {
+      // The FutureBuilder will catch this and display a user-friendly error.
+      throw Exception('User data or profile data not found. The account may be incomplete or have been created before the full onboarding process.');
     }
 
     return {
-      'user': appUser,
-      'profile': profile,
+      'user': AppUser.fromFirestore(userDoc),
+      'profile': Profile.fromFirestore(profileDoc),
     };
   }
 
