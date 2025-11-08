@@ -6,7 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:findom/screens/home/home_screen.dart';
 import 'package:findom/screens/auth/login_screen.dart';
-import 'package:findom/screens/onboarding_screen.dart'; // Add this import
+import 'package:findom/screens/onboarding_screen.dart';
+import 'package:findom/app/root_nav.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -26,37 +27,39 @@ class _SplashScreenState extends State<SplashScreen> {
     final prefs = await SharedPreferences.getInstance();
     final onboardingShown = prefs.getBool('onboarding_shown') ?? false;
 
-    User? user = FirebaseAuth.instance.currentUser;
-
-    if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-
-      if (doc.exists) {
-        // ✅ Onboarding check
-        if (!onboardingShown) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
-        }
-      } else {
-        // User exists but no Firestore data
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      }
-    } else {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
+      return;
     }
+
+    // Look for user document across collections
+    final collections = ['professionals', 'students', 'general_users', 'companies'];
+    DocumentSnapshot? foundDoc;
+    for (final c in collections) {
+      final d = await FirebaseFirestore.instance.collection(c).doc(user.uid).get();
+      if (d.exists) {
+        foundDoc = d;
+        break;
+      }
+    }
+
+    if (!onboardingShown) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      );
+      return;
+    }
+
+    // If profile exists or not, go to RootNav so user can proceed; new users can fill later
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const RootNav()),
+    );
   }
 
   @override

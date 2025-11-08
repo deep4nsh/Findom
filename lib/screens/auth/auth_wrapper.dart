@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:findom/models/user_profile_model.dart';
-import 'package:findom/screens/home/home_screen.dart';
-import 'package:findom/screens/onboarding/user_type_selection_screen.dart';
+import 'package:findom/screens/app_shell.dart';
 import 'package:findom/screens/jobs/company_dashboard_screen.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
-  // This function now checks all possible user collections.
   Future<DocumentSnapshot?> _getUserDocument(String uid) async {
     final collections = ['professionals', 'students', 'general_users', 'companies'];
     for (final collection in collections) {
@@ -19,6 +17,23 @@ class AuthWrapper extends StatelessWidget {
       }
     }
     return null;
+  }
+
+  Future<DocumentSnapshot> _createDefaultUserProfile(User user) async {
+    final userProfile = UserProfile(
+      uid: user.uid,
+      userType: UserType.general, // Default to general user
+      email: user.email ?? '',
+      phoneNumber: user.phoneNumber ?? '',
+      fullName: user.displayName ?? 'New User',
+    );
+
+    await FirebaseFirestore.instance
+        .collection('general_users')
+        .doc(user.uid)
+        .set(userProfile.toFirestore());
+        
+    return FirebaseFirestore.instance.collection('general_users').doc(user.uid).get();
   }
 
   @override
@@ -39,9 +54,18 @@ class AuthWrapper extends StatelessWidget {
           return const Scaffold(body: Center(child: Text("Something went wrong")));
         }
 
-        // If no document is found in any collection, it's a new user.
         if (snapshot.data == null) {
-          return const UserTypeSelectionScreen();
+          // User does not exist in any collection, so create a default profile.
+          return FutureBuilder<DocumentSnapshot>(
+            future: _createDefaultUserProfile(user),
+            builder: (context, newUserSnapshot) {
+              if (newUserSnapshot.connectionState == ConnectionState.waiting) {
+                 return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+              // After creation, proceed to the app.
+              return const AppShell();
+            },
+          );
         }
 
         // Document exists, so route based on userType.
@@ -50,7 +74,7 @@ class AuthWrapper extends StatelessWidget {
         if (userProfile.userType == UserType.company) {
           return const CompanyDashboardScreen();
         } else {
-          return const HomeScreen();
+          return const AppShell();
         }
       },
     );

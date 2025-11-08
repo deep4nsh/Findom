@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:findom/screens/home/home_screen.dart';
+import 'package:findom/app/root_nav.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String verificationId;
@@ -59,7 +60,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         // Navigate to home
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const RootNav()),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:findom/models/user_profile_model.dart';
 import 'package:findom/screens/profile/edit_profile_screen.dart';
+import 'package:findom/screens/profile/role_selection_screen.dart';
 import 'package:findom/services/locator.dart';
 import 'package:findom/services/network_service.dart';
 
@@ -76,22 +77,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         final userProfile = snapshot.data!;
+        final isCurrentUser = widget.userId == FirebaseAuth.instance.currentUser?.uid;
 
         return Scaffold(
           appBar: AppBar(
             title: const Text('Profile'),
             actions: [
-              if (widget.userId == FirebaseAuth.instance.currentUser?.uid)
+              if (isCurrentUser)
                 IconButton(
                   icon: const Icon(Icons.edit),
                   onPressed: () async {
-                    await Navigator.of(context).push(
+                     await Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => EditProfileScreen(profile: userProfile),
                       ),
                     );
                     _refreshProfileData();
                   },
+                ),
+              if (isCurrentUser)
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'logout') {
+                      FirebaseAuth.instance.signOut();
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(
+                      value: 'logout',
+                      child: Text('Logout'),
+                    ),
+                  ],
                 ),
             ],
           ),
@@ -104,6 +120,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 24),
                 _buildStatsRow(), 
                 const SizedBox(height: 24),
+                 if (isCurrentUser)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        await Navigator.of(context).push(MaterialPageRoute(
+                          builder: (context) => RoleSelectionScreen(userProfile: userProfile),
+                        ));
+                        _refreshProfileData();
+                      },
+                      child: const Text('Change Role'),
+                    ),
+                  ),
+                const SizedBox(height: 16),
                 _buildSectionTitle('Headline'),
                 Text(userProfile.headline.isNotEmpty ? userProfile.headline : 'No headline provided.'),
                 const Divider(height: 32),
