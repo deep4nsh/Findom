@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:findom/models/user_model.dart';
-import 'package:findom/models/profile_model.dart';
+import 'package:findom/models/user_profile_model.dart';
 import 'package:findom/screens/profile/profile_screen.dart';
 
 class FindAProScreen extends StatelessWidget {
@@ -14,9 +13,9 @@ class FindAProScreen extends StatelessWidget {
         title: const Text('Find a Professional'),
       ),
       body: StreamBuilder<QuerySnapshot>(
+        // Corrected: Query the 'professionals' collection directly.
         stream: FirebaseFirestore.instance
-            .collection('users')
-            .where('userType', isEqualTo: UserType.professional.toString())
+            .collection('professionals')
             .where('isVerified', isEqualTo: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -30,9 +29,9 @@ class FindAProScreen extends StatelessWidget {
           return ListView.builder(
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
-              final user = AppUser.fromFirestore(snapshot.data!.docs[index]);
-              // We will create ProfessionalCard in the next step
-              return ProfessionalCard(user: user);
+              // Corrected: Use the new unified UserProfile model.
+              final userProfile = UserProfile.fromFirestore(snapshot.data!.docs[index]);
+              return ProfessionalCard(userProfile: userProfile);
             },
           );
         },
@@ -42,39 +41,29 @@ class FindAProScreen extends StatelessWidget {
 }
 
 class ProfessionalCard extends StatelessWidget {
-  final AppUser user;
+  // Corrected: Use the new unified UserProfile model.
+  final UserProfile userProfile;
 
-  const ProfessionalCard({super.key, required this.user});
+  const ProfessionalCard({super.key, required this.userProfile});
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('profiles').doc(user.uid).get(),
-      builder: (context, profileSnapshot) {
-        if (!profileSnapshot.hasData) {
-          return const ListTile(title: Text("Loading..."));
-        }
-
-        final profile = Profile.fromFirestore(profileSnapshot.data!);
-
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          child: ListTile(
-             leading: profile.profilePictureUrl != null
-                ? CircleAvatar(
-                    backgroundImage: NetworkImage(profile.profilePictureUrl!),
-                  )
-                : const CircleAvatar(child: Icon(Icons.person)),
-            title: Text(profile.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(profile.headline),
-            onTap: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) => ProfileScreen(userId: user.uid),
-              ));
-            },
-          ),
-        );
-      },
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      child: ListTile(
+        leading: userProfile.profilePictureUrl != null
+            ? CircleAvatar(
+                backgroundImage: NetworkImage(userProfile.profilePictureUrl!),
+              )
+            : const CircleAvatar(child: Icon(Icons.person)),
+        title: Text(userProfile.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(userProfile.headline),
+        onTap: () {
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => ProfileScreen(userId: userProfile.uid),
+          ));
+        },
+      ),
     );
   }
 }

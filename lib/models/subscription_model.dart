@@ -13,7 +13,8 @@ class Subscription {
     required this.expirationDate,
   });
 
-  bool get isActive => expirationDate.isAfter(Timestamp.now());
+  // Corrected: Convert Timestamp to DateTime before comparison
+  bool get isActive => expirationDate.toDate().isAfter(DateTime.now());
 
   factory Subscription.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;

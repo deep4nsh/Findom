@@ -13,13 +13,12 @@ class NetworkService {
     final currentUserId = currentUser.uid;
     final now = Timestamp.now();
 
-    // 1. Add the user to the current user's 'following' sub-collection
-    final followingRef = _firestore.collection('users').doc(currentUserId).collection('following').doc(userIdToFollow);
+    // 1. Add followed user to the current user's 'following' collection
+    final followingRef = _firestore.collection('following').doc(currentUserId).collection('userFollowing').doc(userIdToFollow);
 
-    // 2. Add the current user to the other user's 'followers' sub-collection
-    final followersRef = _firestore.collection('users').doc(userIdToFollow).collection('followers').doc(currentUserId);
+    // 2. Add current user to the other user's 'followers' collection
+    final followersRef = _firestore.collection('followers').doc(userIdToFollow).collection('userFollowers').doc(currentUserId);
 
-    // Use a batch write to perform both operations atomically
     final batch = _firestore.batch();
     batch.set(followingRef, {'timestamp': now});
     batch.set(followersRef, {'timestamp': now});
@@ -33,13 +32,12 @@ class NetworkService {
 
     final currentUserId = currentUser.uid;
 
-    // 1. Remove the user from the current user's 'following' sub-collection
-    final followingRef = _firestore.collection('users').doc(currentUserId).collection('following').doc(userIdToUnfollow);
+    // 1. Remove followed user from the current user's 'following' collection
+    final followingRef = _firestore.collection('following').doc(currentUserId).collection('userFollowing').doc(userIdToUnfollow);
 
-    // 2. Remove the current user from the other user's 'followers' sub-collection
-    final followersRef = _firestore.collection('users').doc(userIdToUnfollow).collection('followers').doc(currentUserId);
+    // 2. Remove current user from the other user's 'followers' collection
+    final followersRef = _firestore.collection('followers').doc(userIdToUnfollow).collection('userFollowers').doc(currentUserId);
 
-    // Use a batch write for atomicity
     final batch = _firestore.batch();
     batch.delete(followingRef);
     batch.delete(followersRef);

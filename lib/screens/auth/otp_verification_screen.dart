@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
+import 'package:findom/screens/home/home_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String verificationId;
@@ -56,7 +57,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         await FirebaseAuth.instance.signInWithCredential(credential);
 
         // Navigate to home
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Invalid OTP: $e")),

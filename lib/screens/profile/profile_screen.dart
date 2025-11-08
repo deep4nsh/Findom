@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:findom/models/user_model.dart';
-import 'package:findom/models/profile_model.dart';
+import 'package:findom/models/user_profile_model.dart';
 import 'package:findom/screens/profile/edit_profile_screen.dart';
 import 'package:findom/services/locator.dart';
 import 'package:findom/services/network_service.dart';
@@ -18,7 +17,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final NetworkService _networkService = locator<NetworkService>();
-  late Future<Map<String, dynamic>> _profileData;
+  late Future<UserProfile> _profileData;
 
   @override
   void initState() {
@@ -26,21 +25,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _profileData = _fetchProfileData();
   }
 
-  // Corrected: Removed self-healing logic. Responsibility is now with AuthWrapper.
-  Future<Map<String, dynamic>> _fetchProfileData() async {
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
-    final profileDoc = await FirebaseFirestore.instance.collection('profiles').doc(widget.userId).get();
-
-    if (!userDoc.exists || !profileDoc.exists) {
-      // The FutureBuilder will catch this and display a user-friendly error.
-      throw Exception('User data or profile data not found. The account may be incomplete or have been created before the full onboarding process.');
+  Future<UserProfile> _fetchProfileData() async {
+    final doc = await _getUserDocument(widget.userId);
+    if (doc == null) {
+      throw Exception('This user\'s profile could not be found in any collection.');
     }
-
-    return {
-      'user': AppUser.fromFirestore(userDoc),
-      'profile': Profile.fromFirestore(profileDoc),
-    };
+    return UserProfile.fromFirestore(doc);
   }
+
+  Future<DocumentSnapshot?> _getUserDocument(String uid) async {
+    final collections = ['professionals', 'students', 'general_users', 'companies'];
+    for (final collection in collections) {
+      final doc = await FirebaseFirestore.instance.collection(collection).doc(uid).get();
+      if (doc.exists) {
+        return doc;
+      }
+    }
+    return null;
+  }
+
 
   void _refreshProfileData() {
     setState(() {
@@ -50,21 +53,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
+    return FutureBuilder<UserProfile>(
       future: _profileData,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            appBar: null,
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(appBar: null, body: Center(child: CircularProgressIndicator()));
         }
         if (snapshot.hasError) {
           return Scaffold(
             appBar: AppBar(title: const Text('Error')),
             body: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Center(child: Text('An error occurred while loading the profile: \n${snapshot.error}')),
+              child: Center(child: Text('An error occurred: ${snapshot.error}')),
             ),
           );
         }
@@ -75,8 +75,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         }
 
-        final AppUser user = snapshot.data!['user'];
-        final Profile profile = snapshot.data!['profile'];
+        final userProfile = snapshot.data!;
 
         return Scaffold(
           appBar: AppBar(
@@ -88,7 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: () async {
                     await Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => EditProfileScreen(profile: profile),
+                        builder: (context) => EditProfileScreen(profile: userProfile),
                       ),
                     );
                     _refreshProfileData();
@@ -101,26 +100,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(context, user, profile),
+                _buildHeader(context, userProfile),
                 const SizedBox(height: 24),
-                _buildStatsRow(),
+                _buildStatsRow(), 
                 const SizedBox(height: 24),
                 _buildSectionTitle('Headline'),
-                Text(profile.headline.isNotEmpty ? profile.headline : 'No headline provided.'),
+                Text(userProfile.headline.isNotEmpty ? userProfile.headline : 'No headline provided.'),
                 const Divider(height: 32),
                 _buildSectionTitle('Specializations'),
-                profile.specializations.isNotEmpty
+                userProfile.specializations.isNotEmpty
                     ? Wrap(
                         spacing: 8.0,
                         runSpacing: 4.0,
-                        children: profile.specializations
+                        children: userProfile.specializations
                             .map((spec) => Chip(label: Text(spec)))
                             .toList(),
                       )
                     : const Text('No specializations listed.'),
                 const Divider(height: 32),
                 _buildSectionTitle('Education'),
-                Text(profile.education.isNotEmpty ? profile.education : 'No education listed.'),
+                Text(userProfile.education.isNotEmpty ? userProfile.education : 'No education listed.'),
               ],
             ),
           ),
@@ -129,15 +128,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-   Widget _buildHeader(BuildContext context, AppUser user, Profile profile) {
+   Widget _buildHeader(BuildContext context, UserProfile userProfile) {
     return Row(
       children: [
         CircleAvatar(
           radius: 40,
-          backgroundImage: profile.profilePictureUrl != null
-              ? NetworkImage(profile.profilePictureUrl!)
+          backgroundImage: userProfile.profilePictureUrl != null
+              ? NetworkImage(userProfile.profilePictureUrl!)
               : null,
-          child: profile.profilePictureUrl == null
+          child: userProfile.profilePictureUrl == null
               ? const Icon(Icons.person, size: 40)
               : null,
         ),
@@ -150,19 +149,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Flexible(
                     child: Text(
-                      profile.fullName,
+                      userProfile.fullName,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (user.isVerified)
+                  if (userProfile.isVerified)
                     const Padding(
                       padding: EdgeInsets.only(left: 8.0),
                       child: Icon(Icons.verified, color: Colors.blue, size: 20),
                     ),
                 ],
               ),
-              Text(user.userType.toString().split('.').last.toUpperCase()),
+              Text(userProfile.userType.toString().split('.').last.toUpperCase()),
               if (widget.userId != FirebaseAuth.instance.currentUser?.uid)
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0),
@@ -185,15 +184,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildFollowButton() {
+    Widget _buildFollowButton() {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return const SizedBox.shrink();
 
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
           .collection('followers')
+          .doc(widget.userId)
+          .collection('userFollowers')
           .doc(currentUser.uid)
           .snapshots(),
       builder: (context, snapshot) {
@@ -221,15 +220,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildStat('Followers', widget.userId, 'followers'),
-        _buildStat('Following', widget.userId, 'following'),
+        _buildStat('Followers', 'followers', 'userFollowers', widget.userId),
+        _buildStat('Following', 'following', 'userFollowing', widget.userId),
       ],
     );
   }
 
-  Widget _buildStat(String label, String userId, String collection) {
+  Widget _buildStat(String label, String topLevelCollection, String subCollection, String docId) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(userId).collection(collection).snapshots(),
+      stream: FirebaseFirestore.instance.collection(topLevelCollection).doc(docId).collection(subCollection).snapshots(),
       builder: (context, snapshot) {
         final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
         return Column(

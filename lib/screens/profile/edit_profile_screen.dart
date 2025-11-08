@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:findom/models/profile_model.dart';
+import 'package:findom/models/user_profile_model.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  final Profile profile;
+  final UserProfile profile;
 
   const EditProfileScreen({super.key, required this.profile});
 
@@ -28,22 +28,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _specializationController = TextEditingController();
     _specializations = List<String>.from(widget.profile.specializations);
   }
+  
+  String _getCollectionForUserType(UserType userType) {
+    switch (userType) {
+      case UserType.professional:
+        return 'professionals';
+      case UserType.student:
+        return 'students';
+      case UserType.company:
+        return 'companies';
+      case UserType.general:
+      default:
+        return 'general_users';
+    }
+  }
 
   Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
-      final updatedProfile = Profile(
+      final updatedProfile = UserProfile(
         uid: widget.profile.uid,
+        userType: widget.profile.userType,
+        email: widget.profile.email,
+        phoneNumber: widget.profile.phoneNumber,
+        isVerified: widget.profile.isVerified,
+        profilePictureUrl: widget.profile.profilePictureUrl, // Not handling image upload yet
+        
+        // Updated fields from form
         fullName: _fullNameController.text,
         headline: _headlineController.text,
         education: _educationController.text,
         specializations: _specializations,
-        profilePictureUrl: widget.profile.profilePictureUrl, // Not handling image upload yet
       );
 
+      final collectionName = _getCollectionForUserType(widget.profile.userType);
+
       await FirebaseFirestore.instance
-          .collection('profiles')
+          .collection(collectionName)
           .doc(widget.profile.uid)
-          .update(updatedProfile.toFirestore());
+          .set(updatedProfile.toFirestore(), SetOptions(merge: true)); // Use merge to avoid overwriting fields
 
       if (mounted) {
         Navigator.of(context).pop();

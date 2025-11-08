@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:findom/models/post_model.dart';
-import 'package:findom/models/user_model.dart';
+import 'package:findom/models/user_profile_model.dart';
 import 'package:findom/services/locator.dart';
 import 'package:findom/services/post_service.dart';
 import 'package:findom/screens/auth/login_screen.dart';
@@ -99,6 +99,12 @@ class HomeScreen extends StatelessWidget {
           const Divider(),
           buildDrawerTile(Icons.logout, 'Logout', () async {
             await FirebaseAuth.instance.signOut();
+            if (context.mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
+            }
           }),
           const Divider(),
           darkModeToggle(model),
@@ -149,23 +155,22 @@ class CreatePostButton extends StatelessWidget {
     if (user == null) return const SizedBox.shrink();
 
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+      // Only professionals can create posts.
+      future: FirebaseFirestore.instance.collection('professionals').doc(user.uid).get(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink();
-
-        final appUser = AppUser.fromFirestore(snapshot.data!);
-
-        if (appUser.userType == UserType.professional && appUser.isVerified) {
-          return FloatingActionButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const CreatePostScreen()),
-              );
-            },
-            child: const Icon(Icons.add),
-          );
+        if (snapshot.hasData && snapshot.data!.exists) {
+           final userProfile = UserProfile.fromFirestore(snapshot.data!);
+           if(userProfile.isVerified){
+             return FloatingActionButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const CreatePostScreen()),
+                );
+              },
+              child: const Icon(Icons.add),
+            );
+           }
         }
-
         return const SizedBox.shrink();
       },
     );
@@ -177,6 +182,17 @@ class PostCard extends StatelessWidget {
   final PostService _postService = locator<PostService>();
 
   PostCard({super.key, required this.post});
+
+  Future<DocumentSnapshot?> _getAuthorDocument(String uid) async {
+    final collections = ['professionals', 'students', 'general_users', 'companies'];
+    for (final collection in collections) {
+      final doc = await FirebaseFirestore.instance.collection(collection).doc(uid).get();
+      if (doc.exists) {
+        return doc;
+      }
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +206,16 @@ class PostCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Author: ${post.authorId}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            FutureBuilder<DocumentSnapshot?>(
+              future: _getAuthorDocument(post.authorId),
+              builder: (context, authorSnapshot) {
+                if (!authorSnapshot.hasData) {
+                  return const Text("Loading user...");
+                }
+                final authorProfile = UserProfile.fromFirestore(authorSnapshot.data!);
+                return Text(authorProfile.fullName, style: const TextStyle(fontWeight: FontWeight.bold));
+              },
+            ),
             const SizedBox(height: 8),
             Text(post.content),
             const SizedBox(height: 8),
