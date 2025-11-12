@@ -26,8 +26,8 @@ class CompanyDashboardScreen extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const CreateJobScreen()),
           );
         },
-        child: const Icon(Icons.add),
         tooltip: 'Post a New Job',
+        child: const Icon(Icons.add),
       ),
     );
   }

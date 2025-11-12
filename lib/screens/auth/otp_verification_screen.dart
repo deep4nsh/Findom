@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
-import 'package:findom/screens/home/home_screen.dart';
 import 'package:findom/app/root_nav.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
@@ -36,7 +35,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     }
   }
 
-  void _onBackspacePressed(int index, RawKeyEvent event) {
+  void _onBackspacePressed(int index, KeyEvent event) {
     if (event.logicalKey == LogicalKeyboardKey.backspace &&
         _controllers[index].text.isEmpty &&
         index > 0) {
@@ -58,14 +57,18 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         await FirebaseAuth.instance.signInWithCredential(credential);
 
         // Navigate to home
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const RootNav()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const RootNav()),
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Invalid OTP: $e")),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Invalid OTP: $e")),
+          );
+        }
       } finally {
         setState(() {
           _isLoading = false;
@@ -93,9 +96,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     return SizedBox(
       width: 50,
       height: 60,
-      child: RawKeyboardListener(
+      child: KeyboardListener(
         focusNode: FocusNode(),
-        onKey: (event) => _onBackspacePressed(index, event),
+        onKeyEvent: (event) => _onBackspacePressed(index, event),
         child: TextField(
           controller: _controllers[index],
           focusNode: _focusNodes[index],

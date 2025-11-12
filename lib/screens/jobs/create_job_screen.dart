@@ -77,7 +77,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<EmploymentType>(
-                value: _employmentType,
+                initialValue: _employmentType,
                 decoration: const InputDecoration(labelText: 'Employment Type'),
                 items: EmploymentType.values.map((type) {
                   return DropdownMenuItem(value: type, child: Text(type.toString().split('.').last));

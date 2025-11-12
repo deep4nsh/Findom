@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -32,19 +33,19 @@ class AuthService {
       );
 
       await user.linkWithCredential(phoneCredential);
-      print("✅ Phone number linked successfully.");
+      debugPrint("✅ Phone number linked successfully.");
     } on FirebaseAuthException catch (e) {
       if (e.code == 'provider-already-linked') {
-        print("⚠️ This phone number is already linked to the account.");
+        debugPrint("⚠️ This phone number is already linked to the account.");
       } else if (e.code == 'credential-already-in-use') {
-        print("❌ This phone number is already used by another account.");
+        debugPrint("❌ This phone number is already used by another account.");
         throw Exception("This phone number is already in use.");
       } else {
-        print("❌ Linking failed: ${e.message}");
+        debugPrint("❌ Linking failed: ${e.message}");
         throw Exception("Failed to link phone number: ${e.message}");
       }
     } catch (e) {
-      print("❌ Unknown error during linking: $e");
+      debugPrint("❌ Unknown error during linking: $e");
       rethrow;
     }
   }

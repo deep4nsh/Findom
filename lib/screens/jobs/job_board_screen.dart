@@ -16,6 +16,9 @@ class JobBoardScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('jobs').orderBy('postedDate', descending: true).snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(child: Text("Unable to load jobs (permissions)."));
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -46,6 +49,9 @@ class JobCard extends StatelessWidget {
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance.collection('companies').doc(job.companyId).get(),
       builder: (context, companySnapshot) {
+        if (companySnapshot.hasError) {
+          return const ListTile(title: Text('Company info unavailable'));
+        }
         if (companySnapshot.connectionState == ConnectionState.waiting) {
           return const ListTile(title: Text('Loading...'));
         }

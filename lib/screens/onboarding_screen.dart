@@ -44,10 +44,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_shown', true);
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const RootNav()),
-    );
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const RootNav()),
+      );
+    }
   }
 
   @override
@@ -69,7 +71,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
               // Overlay with color filter (optional for better readability)
               Container(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withAlpha(102),
               ),
 
               // Content Overlay

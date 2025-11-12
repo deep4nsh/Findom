@@ -2,8 +2,6 @@ import 'package:findom/screens/onboarding_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../services/auth_service.dart';
-import '../home/home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -29,8 +27,10 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       phoneNumber: widget.phone,
       verificationCompleted: (PhoneAuthCredential credential) {},
       verificationFailed: (FirebaseAuthException e) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("OTP Failed: ${e.message}")));
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text("OTP Failed: ${e.message}")));
+        }
         setState(() => loading = false);
       },
       codeSent: (String verId, int? resendToken) {
@@ -55,7 +55,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
     }
   }
 
-  void _onBackspacePressed(int index, RawKeyEvent event) {
+  void _onBackspacePressed(int index, KeyEvent event) {
     if (event.logicalKey == LogicalKeyboardKey.backspace &&
         _controllers[index].text.isEmpty &&
         index > 0) {
@@ -94,14 +94,18 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       await prefs.setBool('onboarding_shown', true);
 
       // ✅ Navigate to Onboarding screen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      );
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Verification failed: $e")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Verification failed: $e")),
+        );
+      }
     } finally {
       setState(() => loading = false);
     }
@@ -112,9 +116,9 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
   Widget _buildOtpBox(int index) {
     return SizedBox(
       width: 50,
-      child: RawKeyboardListener(
+      child: KeyboardListener(
         focusNode: FocusNode(),
-        onKey: (event) => _onBackspacePressed(index, event),
+        onKeyEvent: (event) => _onBackspacePressed(index, event),
         child: TextField(
           controller: _controllers[index],
           focusNode: _focusNodes[index],

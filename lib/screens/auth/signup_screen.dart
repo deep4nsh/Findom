@@ -60,14 +60,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
       });
 
       // Navigate to OTP screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => PhoneVerificationScreen(phone: phone)),
-      );
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => PhoneVerificationScreen(phone: phone)),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Signup failed: ${e.toString()}")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Signup failed: ${e.toString()}")),
+        );
+      }
     } finally {
       setState(() => loading = false);
     }

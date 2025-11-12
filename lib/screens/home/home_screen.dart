@@ -55,6 +55,9 @@ class HomeScreen extends StatelessWidget {
             body: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const Center(child: Text('Feed unavailable.'));
+                }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -113,12 +116,16 @@ class PostCard extends StatelessWidget {
   PostCard({super.key, required this.post});
 
   Future<DocumentSnapshot?> _getAuthorDocument(String uid) async {
-    final collections = ['professionals', 'students', 'general_users'];
-    for (final collection in collections) {
-      final doc = await FirebaseFirestore.instance.collection(collection).doc(uid).get();
-      if (doc.exists) {
-        return doc;
+    try {
+      final collections = ['professionals', 'students', 'general_users', 'companies'];
+      for (final collection in collections) {
+        final doc = await FirebaseFirestore.instance.collection(collection).doc(uid).get();
+        if (doc.exists) {
+          return doc;
+        }
       }
+    } catch (_) {
+      // ignore permission/offline errors
     }
     return null;
   }

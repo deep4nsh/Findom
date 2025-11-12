@@ -38,7 +38,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       case UserType.company:
         return 'companies';
       case UserType.general:
-      default:
         return 'general_users';
     }
   }

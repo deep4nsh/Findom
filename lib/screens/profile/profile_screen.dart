@@ -226,6 +226,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .doc(currentUser.uid)
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const SizedBox();
+        }
         if (!snapshot.hasData) {
           return const SizedBox();
         }
@@ -260,6 +263,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection(topLevelCollection).doc(docId).collection(subCollection).snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Column(
+            children: [
+              Text('0', style: Theme.of(context).textTheme.titleLarge),
+              Text(label),
+            ],
+          );
+        }
         final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
         return Column(
           children: [

@@ -31,7 +31,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       case UserType.company:
         return 'companies';
       case UserType.general:
-      default:
         return 'general_users';
     }
   }
@@ -73,16 +72,26 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       ),
       body: ListView(
         children: UserType.values.map((type) {
-          return RadioListTile<UserType>(
+          return ListTile(
             title: Text(type.toString().split('.').last.toUpperCase()),
-            value: type,
-            groupValue: _selectedType,
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedType = value;
-                });
-              }
+            // ignore: deprecated_member_use
+            leading: Radio<UserType>(
+              value: type,
+              // ignore: deprecated_member_use
+              groupValue: _selectedType,
+              // ignore: deprecated_member_use
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedType = value;
+                  });
+                }
+              },
+            ),
+            onTap: () {
+              setState(() {
+                _selectedType = type;
+              });
             },
           );
         }).toList(),

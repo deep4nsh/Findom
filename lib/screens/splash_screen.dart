@@ -1,13 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:findom/screens/home/home_screen.dart';
-import 'package:findom/screens/auth/login_screen.dart';
-import 'package:findom/screens/onboarding_screen.dart';
-import 'package:findom/app/root_nav.dart';
+import 'package:findom/screens/auth/auth_wrapper.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -20,46 +13,19 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 2), _checkLoginStatus);
+    // After a delay, navigate to the AuthWrapper and let it handle everything.
+    Timer(const Duration(seconds: 3), _navigate);
   }
 
-  void _checkLoginStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final onboardingShown = prefs.getBool('onboarding_shown') ?? false;
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+  void _navigate() {
+    if (mounted) {
+      // The AuthWrapper is the single source of truth for routing.
+      // This completely removes the faulty database query from the splash screen.
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => const AuthWrapper()),
       );
-      return;
     }
-
-    // Look for user document across collections
-    final collections = ['professionals', 'students', 'general_users', 'companies'];
-    DocumentSnapshot? foundDoc;
-    for (final c in collections) {
-      final d = await FirebaseFirestore.instance.collection(c).doc(user.uid).get();
-      if (d.exists) {
-        foundDoc = d;
-        break;
-      }
-    }
-
-    if (!onboardingShown) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      );
-      return;
-    }
-
-    // If profile exists or not, go to RootNav so user can proceed; new users can fill later
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const RootNav()),
-    );
   }
 
   @override
@@ -71,22 +37,20 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/images/profile.png',
+              'assets/images/profile.png', // Assuming you have a logo here
               height: 100,
             ),
             const SizedBox(height: 20),
             const Text(
-              "Findom",
+              'Findom',
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 20),
-            const CircularProgressIndicator(color: Colors.white),
           ],
-        ),
+        ), 
       ),
     );
   }

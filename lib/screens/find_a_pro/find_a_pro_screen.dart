@@ -13,12 +13,19 @@ class FindAProScreen extends StatelessWidget {
         title: const Text('Find a Professional'),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // Corrected: Query the 'professionals' collection directly.
         stream: FirebaseFirestore.instance
             .collection('professionals')
             .where('isVerified', isEqualTo: true)
             .snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text(
+                "You don't have permission to view professionals yet.",
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -29,7 +36,6 @@ class FindAProScreen extends StatelessWidget {
           return ListView.builder(
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
-              // Corrected: Use the new unified UserProfile model.
               final userProfile = UserProfile.fromFirestore(snapshot.data!.docs[index]);
               return ProfessionalCard(userProfile: userProfile);
             },

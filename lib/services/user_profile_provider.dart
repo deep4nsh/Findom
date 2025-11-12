@@ -21,9 +21,14 @@ class UserProfileProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    final doc = await _getUserDocument(user.uid);
-    if (doc != null) {
-      _userProfile = UserProfile.fromFirestore(doc);
+    try {
+      final doc = await _getUserDocument(user.uid);
+      if (doc != null) {
+        _userProfile = UserProfile.fromFirestore(doc);
+      }
+    } catch (_) {
+      // Permission/network errors shouldn't crash the UI
+      _userProfile = null;
     }
 
     _isLoading = false;
