@@ -7,6 +7,7 @@ import 'package:findom/models/user_profile_model.dart';
 import 'package:findom/services/locator.dart';
 import 'package:findom/services/post_service.dart';
 import 'package:findom/services/user_profile_provider.dart';
+import 'package:findom/services/following_provider.dart';
 import 'package:findom/screens/posts/comments_screen.dart';
 import 'package:findom/screens/search/search_screen.dart';
 import 'package:findom/screens/posts/create_post_screen.dart';
@@ -18,62 +19,55 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => HomeViewModel(),
-      child: Consumer<HomeViewModel>(
-        builder: (context, model, child) {
-          return Scaffold(
-            backgroundColor: Colors.grey[200],
-            appBar: AppBar(
-              title: const Text('Feed'),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () {
-                    Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SearchScreen()));
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.message),
-                  onPressed: () { /* TODO: Navigate to Messages Screen */ },
-                ),
-              ],
-            ),
-            body: Column(
-              children: [
-                const StartPostWidget(), // The new LinkedIn-style widget
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return const Center(child: Text("No posts yet. Be the first to share!"));
-                      }
+    return Scaffold(
+      backgroundColor: Colors.grey[200],
+      appBar: AppBar(
+        title: const Text('Feed'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SearchScreen()));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.message),
+            onPressed: () { /* TODO: Navigate to Messages Screen */ },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          const StartPostWidget(),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text("No posts yet. Be the first to share!"));
+                }
 
-                      return ListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        itemCount: snapshot.data!.docs.length,
-                        itemBuilder: (context, index) {
-                          final post = Post.fromFirestore(snapshot.data!.docs[index]);
-                          return PostCard(post: post);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    final post = Post.fromFirestore(snapshot.data!.docs[index]);
+                    return PostCard(post: post);
+                  },
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
 }
 
-// --- New "Start a Post" Widget ---
+// --- "Start a Post" Widget ---
 class StartPostWidget extends StatelessWidget {
   const StartPostWidget({super.key});
 
@@ -121,7 +115,7 @@ class StartPostWidget extends StatelessWidget {
   }
 }
 
-// --- PostCard Widget ---
+// --- PostCard Widget (Now with Inline Follow Button) ---
 class PostCard extends StatelessWidget {
   final Post post;
   final PostService _postService = locator<PostService>();
@@ -149,36 +143,18 @@ class PostCard extends StatelessWidget {
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              child: _buildAuthorHeader(context),
-            ),
+            _buildAuthorHeader(context, userId),
             const SizedBox(height: 16),
-            GestureDetector(
-              onDoubleTap: () {
-                if(userId != null){
-                  _postService.toggleLike(post.id, post.likes);
-                }
-              },
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                   Padding(
-                     padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                     child: Text(post.content, style: const TextStyle(fontSize: 15)),
-                   ),
-                  if (post.imageUrl != null && post.imageUrl!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16.0),
-                      child: Image.network(post.imageUrl!, width: double.infinity, fit: BoxFit.cover),
-                    ),
-                ],
+            Text(post.content, style: const TextStyle(fontSize: 15)),
+            if (post.imageUrl != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 16.0),
+                child: Image.network(post.imageUrl!),
               ),
-            ),
             const SizedBox(height: 12),
             const Divider(height: 1),
             _buildActionButtons(context, isLiked),
@@ -188,7 +164,7 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAuthorHeader(BuildContext context) {
+  Widget _buildAuthorHeader(BuildContext context, String? currentUserId) {
     return FutureBuilder<DocumentSnapshot?>(
       future: _getAuthorDocument(post.authorId),
       builder: (context, authorSnapshot) {
@@ -206,13 +182,43 @@ class PostCard extends StatelessWidget {
               child: authorProfile.profilePictureUrl == null ? const Icon(Icons.person) : null,
             ),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(authorProfile.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                Text(authorProfile.headline, style: Theme.of(context).textTheme.bodySmall),
-              ],
-            )
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(authorProfile.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(authorProfile.headline, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ),
+            // Inline Follow Button Logic
+            if (post.authorId != currentUserId) // Don't show follow button for your own posts
+              Consumer<FollowingProvider>(
+                builder: (context, followingProvider, child) {
+                  final bool isFollowing = followingProvider.isFollowing(post.authorId);
+                  return TextButton.icon(
+                    icon: Icon(
+                      isFollowing ? Icons.check : Icons.add,
+                      size: 18,
+                      color: isFollowing ? Colors.grey : Theme.of(context).primaryColor,
+                    ),
+                    label: Text(
+                      isFollowing ? 'Following' : 'Follow',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isFollowing ? Colors.grey : Theme.of(context).primaryColor,
+                      ),
+                    ),
+                    onPressed: () {
+                      if (isFollowing) {
+                        followingProvider.unfollow(post.authorId);
+                      } else {
+                        followingProvider.follow(post.authorId);
+                      }
+                    },
+                  );
+                },
+              )
           ],
         );
       },
