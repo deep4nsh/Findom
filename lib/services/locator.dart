@@ -4,6 +4,7 @@ import 'package:findom/services/theme_provider.dart';
 import 'package:findom/services/post_service.dart';
 import 'package:findom/services/network_service.dart';
 import 'package:findom/services/search_service.dart';
+import 'package:findom/services/image_upload_service.dart';
 
 GetIt locator = GetIt.instance;
 
@@ -13,4 +14,5 @@ void setupLocator() {
   locator.registerLazySingleton(() => PostService());
   locator.registerLazySingleton(() => NetworkService());
   locator.registerLazySingleton(() => SearchService());
+  locator.registerLazySingleton(() => ImageUploadService());
 }

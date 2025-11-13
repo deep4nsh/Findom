@@ -23,6 +23,7 @@ class _RootNavState extends State<RootNav> {
       return const LoginScreen();
     }
 
+    final theme = Theme.of(context);
     final pages = <Widget>[
       const HomeScreen(),
       const SearchScreen(),
@@ -35,12 +36,28 @@ class _RootNavState extends State<RootNav> {
         children: pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: theme.bottomNavigationBarTheme.backgroundColor,
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),
+        selectedItemColor: theme.bottomNavigationBarTheme.selectedItemColor,
+        unselectedItemColor: theme.bottomNavigationBarTheme.unselectedItemColor,
+        type: BottomNavigationBarType.fixed,
+        showUnselectedLabels: true,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: 'Search',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Me',
+          ),
         ],
       ),
     );

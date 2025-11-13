@@ -10,7 +10,6 @@ import 'package:findom/services/user_profile_provider.dart';
 import 'package:findom/screens/posts/comments_screen.dart';
 import 'package:findom/screens/search/search_screen.dart';
 import 'package:findom/screens/posts/create_post_screen.dart';
-import 'package:findom/screens/auth/login_screen.dart';
 import 'home_view_model.dart';
 
 // --- Main HomeScreen Widget ---
@@ -38,44 +37,35 @@ class HomeScreen extends StatelessWidget {
                   icon: const Icon(Icons.message),
                   onPressed: () { /* TODO: Navigate to Messages Screen */ },
                 ),
-                IconButton(
-                  icon: const Icon(Icons.logout),
-                  onPressed: () async {
-                    await FirebaseAuth.instance.signOut();
-                    if (context.mounted) {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (route) => false,
+              ],
+            ),
+            body: Column(
+              children: [
+                const StartPostWidget(), // The new LinkedIn-style widget
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return const Center(child: Text("No posts yet. Be the first to share!"));
+                      }
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        itemCount: snapshot.data!.docs.length,
+                        itemBuilder: (context, index) {
+                          final post = Post.fromFirestore(snapshot.data!.docs[index]);
+                          return PostCard(post: post);
+                        },
                       );
-                    }
-                  },
+                    },
+                  ),
                 ),
               ],
             ),
-            body: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(child: Text('Feed unavailable.'));
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text("No posts yet. Be the first to share!"));
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  itemCount: snapshot.data!.docs.length,
-                  itemBuilder: (context, index) {
-                    final post = Post.fromFirestore(snapshot.data!.docs[index]);
-                    return PostCard(post: post);
-                  },
-                );
-              },
-            ),
-            floatingActionButton: const CreatePostButton(), // Use the refactored button
           );
         },
       ),
@@ -83,9 +73,9 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// --- CreatePostButton (Refactored to use Provider) ---
-class CreatePostButton extends StatelessWidget {
-  const CreatePostButton({super.key});
+// --- New "Start a Post" Widget ---
+class StartPostWidget extends StatelessWidget {
+  const StartPostWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -93,17 +83,40 @@ class CreatePostButton extends StatelessWidget {
     final userProfile = profileProvider.userProfile;
 
     if (userProfile != null &&
-        userProfile.userType == UserType.professional) {
-      return FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const CreatePostScreen()),
-          );
-        },
-        child: const Icon(Icons.add),
+        userProfile.userType == UserType.professional &&
+        userProfile.isVerified) {
+      return Card(
+        margin: const EdgeInsets.all(8.0),
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        child: InkWell(
+          onTap: () {
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (context) => const CreatePostScreen(),
+              fullscreenDialog: true,
+            ));
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundImage: userProfile.profilePictureUrl != null
+                      ? NetworkImage(userProfile.profilePictureUrl!)
+                      : null,
+                  child: userProfile.profilePictureUrl == null ? const Icon(Icons.person) : null,
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text("Start a post", style: TextStyle(color: Colors.grey, fontSize: 16)),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
-
     return const SizedBox.shrink();
   }
 }
@@ -116,16 +129,12 @@ class PostCard extends StatelessWidget {
   PostCard({super.key, required this.post});
 
   Future<DocumentSnapshot?> _getAuthorDocument(String uid) async {
-    try {
-      final collections = ['professionals', 'students', 'general_users', 'companies'];
-      for (final collection in collections) {
-        final doc = await FirebaseFirestore.instance.collection(collection).doc(uid).get();
-        if (doc.exists) {
-          return doc;
-        }
+    final collections = ['professionals', 'students', 'general_users'];
+    for (final collection in collections) {
+      final doc = await FirebaseFirestore.instance.collection(collection).doc(uid).get();
+      if (doc.exists) {
+        return doc;
       }
-    } catch (_) {
-      // ignore permission/offline errors
     }
     return null;
   }
@@ -140,13 +149,36 @@ class PostCard extends StatelessWidget {
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.symmetric(vertical: 12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildAuthorHeader(context),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: _buildAuthorHeader(context),
+            ),
             const SizedBox(height: 16),
-            Text(post.content, style: const TextStyle(fontSize: 15)),
+            GestureDetector(
+              onDoubleTap: () {
+                if(userId != null){
+                  _postService.toggleLike(post.id, post.likes);
+                }
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   Padding(
+                     padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                     child: Text(post.content, style: const TextStyle(fontSize: 15)),
+                   ),
+                  if (post.imageUrl != null && post.imageUrl!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: Image.network(post.imageUrl!, width: double.infinity, fit: BoxFit.cover),
+                    ),
+                ],
+              ),
+            ),
             const SizedBox(height: 12),
             const Divider(height: 1),
             _buildActionButtons(context, isLiked),

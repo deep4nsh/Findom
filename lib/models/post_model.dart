@@ -4,6 +4,7 @@ class Post {
   final String id;
   final String authorId;
   final String content;
+  final String? imageUrl; // New field for the image
   final Timestamp timestamp;
   final List<String> likes;
 
@@ -11,6 +12,7 @@ class Post {
     required this.id,
     required this.authorId,
     required this.content,
+    this.imageUrl,
     required this.timestamp,
     this.likes = const [],
   });
@@ -23,6 +25,7 @@ class Post {
       id: doc.id,
       authorId: data['authorId'] ?? '',
       content: data['content'] ?? '',
+      imageUrl: data['imageUrl'],
       timestamp: data['timestamp'] ?? Timestamp.now(),
       likes: List<String>.from(data['likes'] ?? []),
     );
@@ -32,6 +35,7 @@ class Post {
     return {
       'authorId': authorId,
       'content': content,
+      'imageUrl': imageUrl,
       'timestamp': timestamp,
       'likes': likes,
     };

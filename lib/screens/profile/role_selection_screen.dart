@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import 'package:findom/models/user_profile_model.dart';
+import 'package:findom/services/user_profile_provider.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   final UserProfile userProfile;
@@ -42,19 +44,57 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       return;
     }
 
-    final oldCollection = _getCollectionForUserType(widget.userProfile.userType);
-    final newCollection = _getCollectionForUserType(_selectedType);
-    final userDocRef = FirebaseFirestore.instance.collection(oldCollection).doc(widget.userProfile.uid);
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
 
-    final updatedProfile = widget.userProfile.toFirestore()..['userType'] = _selectedType.toString();
+    try {
+      final oldCollection = _getCollectionForUserType(widget.userProfile.userType);
+      final newCollection = _getCollectionForUserType(_selectedType);
+      
+      debugPrint('Changing role from ${widget.userProfile.userType} to $_selectedType');
+      debugPrint('Moving from $oldCollection to $newCollection');
 
-    final batch = FirebaseFirestore.instance.batch();
-    batch.delete(userDocRef); // Delete from the old collection
-    batch.set(FirebaseFirestore.instance.collection(newCollection).doc(widget.userProfile.uid), updatedProfile); // Create in the new collection
-    await batch.commit();
+      // Create the updated profile data
+      final updatedProfile = widget.userProfile.toFirestore();
+      updatedProfile['userType'] = _selectedType.toString();
 
-    if (mounted) {
-      Navigator.of(context).pop();
+      // Use batch to ensure atomic operation
+      final batch = FirebaseFirestore.instance.batch();
+      
+      // Delete from old collection
+      final oldDocRef = FirebaseFirestore.instance.collection(oldCollection).doc(widget.userProfile.uid);
+      batch.delete(oldDocRef);
+      
+      // Create in new collection
+      final newDocRef = FirebaseFirestore.instance.collection(newCollection).doc(widget.userProfile.uid);
+      batch.set(newDocRef, updatedProfile);
+      
+      // Commit the batch
+      await batch.commit();
+      
+      debugPrint('Role updated successfully');
+
+      // Make sure global user profile updates immediately across the app
+      if (mounted) {
+        await context.read<UserProfileProvider>().reload();
+        Navigator.of(context).pop(); // Close loading dialog
+        Navigator.of(context).pop(true); // Return to profile with success flag
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Role updated successfully')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating role: $e');
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update role: $e')),
+        );
+      }
     }
   }
 

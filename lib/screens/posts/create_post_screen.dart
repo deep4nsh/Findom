@@ -1,7 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:findom/models/post_model.dart';
+import 'package:findom/services/locator.dart';
+import 'package:findom/services/image_upload_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -13,7 +17,17 @@ class CreatePostScreen extends StatefulWidget {
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final _formKey = GlobalKey<FormState>();
   final _contentController = TextEditingController();
+  final ImageUploadService _imageUploadService = locator<ImageUploadService>();
+  final ImagePicker _picker = ImagePicker();
+  XFile? _imageFile;
   bool _isSubmitting = false;
+
+  Future<void> _pickImage() async {
+    final XFile? selectedImage = await _picker.pickImage(source: ImageSource.gallery);
+    setState(() {
+      _imageFile = selectedImage;
+    });
+  }
 
   Future<void> _submitPost() async {
     if (_formKey.currentState!.validate()) {
@@ -22,20 +36,44 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       });
 
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('You must be signed in to post.')),
+          );
+        }
+        setState(() {
+          _isSubmitting = false;
+        });
+        return;
+      }
+
+      String? imageUrl;
+      if (_imageFile != null) {
+        imageUrl = await _imageUploadService.uploadImage(File(_imageFile!.path));
+      }
 
       final newPost = Post(
-        id: ' ', // Firestore will generate the ID
+        id: ' ', // Firestore will generate
         authorId: user.uid,
         content: _contentController.text,
+        imageUrl: imageUrl,
         timestamp: Timestamp.now(),
-        likes: const [], // Corrected from likeCount
+        likes: const [],
       );
 
       await FirebaseFirestore.instance.collection('posts').add(newPost.toFirestore());
 
       if (mounted) {
-        Navigator.of(context).pop();
+        // Keep the create post UI visible like LinkedIn: clear and reset instead of closing
+        setState(() {
+          _isSubmitting = false;
+          _contentController.clear();
+          _imageFile = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post published')),
+        );
       }
     }
   }
@@ -57,6 +95,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextFormField(
                 controller: _contentController,
@@ -66,9 +105,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ),
                 maxLines: null,
                 validator: (value) =>
-                    value!.isEmpty ? 'Post content cannot be empty' : null,
+                    value!.trim().isEmpty ? 'Post content cannot be empty' : null,
               ),
-              if (_isSubmitting) const LinearProgressIndicator(),
+              const SizedBox(height: 16),
+              if (_imageFile != null)
+                Image.file(File(_imageFile!.path), height: 200),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _pickImage,
+                icon: const Icon(Icons.image),
+                label: const Text('Attach Image'),
+              ),
+              if (_isSubmitting) const Padding(
+                padding: EdgeInsets.only(top: 16.0),
+                child: LinearProgressIndicator(),
+              ),
             ],
           ),
         ),

@@ -11,12 +11,22 @@ class UserProfileProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
 
   UserProfileProvider() {
+    // Refresh when auth state changes (login/logout)
+    FirebaseAuth.instance.authStateChanges().listen((_) => _loadUserProfile());
     _loadUserProfile();
+  }
+
+  Future<void> reload() async {
+    await _loadUserProfile();
   }
 
   Future<void> _loadUserProfile() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      _userProfile = null;
+      notifyListeners();
+      return;
+    }
 
     _isLoading = true;
     notifyListeners();
@@ -25,6 +35,8 @@ class UserProfileProvider with ChangeNotifier {
       final doc = await _getUserDocument(user.uid);
       if (doc != null) {
         _userProfile = UserProfile.fromFirestore(doc);
+      } else {
+        _userProfile = null;
       }
     } catch (_) {
       // Permission/network errors shouldn't crash the UI

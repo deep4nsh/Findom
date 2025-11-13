@@ -27,6 +27,22 @@ service cloud.firestore {
       allow create, update: if request.auth.uid == userId;
       allow delete: if false; // Disallow deleting profiles for now
     }
+
+    // User Type Collections (professionals, students, general_users, companies)
+    match /professionals/{userId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth.uid == userId;
+    }
+
+    match /students/{userId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth.uid == userId;
+    }
+
+    match /general_users/{userId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth.uid == userId;
+    }
     
     // Rule Group 2: Posts & Comments Data
     // ------------------------------------
@@ -47,7 +63,7 @@ service cloud.firestore {
     // ---------------------------------------
     match /companies/{companyId} {
       allow read: if request.auth != null;
-      allow create, update: if request.auth.uid == companyId;
+      allow create, update, delete: if request.auth.uid == companyId;
     }
 
     match /jobs/{jobId} {
@@ -62,6 +78,18 @@ service cloud.firestore {
         // Only the user or a backend admin role can read/write subscription status.
         // This rule will be refined when a payment system is fully integrated.
         allow read, write: if request.auth.uid == userId;
+    }
+
+    // Rule Group 5: Followers & Following Data
+    // ------------------------------------------
+    match /followers/{userId}/userFollowers/{followerId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == followerId;
+    }
+
+    match /following/{userId}/userFollowing/{followingId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == userId;
     }
   }
 }

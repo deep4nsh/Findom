@@ -24,21 +24,25 @@ dependencies:
 
   # Text to Speech and Speech Recognition
   flutter_tts: ^3.6.3
-  #speech_to_text: 6.6.3  ✅ This version avoids Android build errors with Flutter 3.8+
+  #speech_to_text: 6.6.3
 
   # Animation
   avatar_glow: ^2.0.2
 
   # UI & Fonts
   cupertino_icons: ^1.0.8
-  google_fonts: ^4.0.4 # Downgraded to resolve http conflict
+  google_fonts: ^4.0.4
 
   # State management
   provider: ^6.1.2
   get_it: ^7.6.7
 
   # Search
-  algolia: ^1.1.2 # Using the community package to avoid dependency conflicts
+  algolia: ^1.1.2
+
+  # Image
+  image_picker: ^1.1.2
+  cloudinary_public: ^0.23.1 # Corrected to null-safe version
 
   # Form validation and hooks
   flutter_hooks: ^0.20.3

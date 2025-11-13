@@ -32,16 +32,25 @@ class UserProfile {
     this.isVerified = false,
   });
 
+  static UserType _parseUserType(dynamic raw) {
+    if (raw == null) return UserType.general;
+    final value = raw.toString();
+    // Accept both 'UserType.professional' and 'professional'
+    for (final e in UserType.values) {
+      final full = e.toString();
+      final short = full.split('.').last;
+      if (value == full || value == short) return e;
+    }
+    return UserType.general;
+  }
+
   factory UserProfile.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>;
     return UserProfile(
       uid: doc.id,
       email: data['email'] ?? '',
       phoneNumber: data['phoneNumber'] ?? '',
-      userType: UserType.values.firstWhere(
-        (e) => e.toString() == data['userType'],
-        orElse: () => UserType.general,
-      ),
+      userType: _parseUserType(data['userType']),
       fullName: data['fullName'] ?? '',
       headline: data['headline'] ?? '',
       profilePictureUrl: data['profilePictureUrl'],
@@ -56,6 +65,7 @@ class UserProfile {
       'uid': uid,
       'email': email,
       'phoneNumber': phoneNumber,
+      // Keep existing storage format for backward compatibility
       'userType': userType.toString(),
       'fullName': fullName,
       'headline': headline,

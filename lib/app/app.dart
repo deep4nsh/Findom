@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:findom/services/theme_provider.dart';
 import 'package:findom/screens/auth/auth_wrapper.dart';
+import 'package:findom/theme/app_theme.dart'; // Import your custom theme
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -12,13 +13,11 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'Findom',
-      theme: ThemeData.light(),
-      darkTheme: ThemeData.dark(),
+      // Correctly apply the custom theme
+      theme: AppTheme.light(), 
+      darkTheme: AppTheme.dark(),
       themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       debugShowCheckedModeBanner: false,
-
-      // Corrected: AuthWrapper is the single entry point.
-      // The old, broken SplashScreen is no longer used.
       home: const AuthWrapper(),
     );
   }
