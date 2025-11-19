@@ -20,9 +20,9 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[200],
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Feed'),
+        title: const Text('Findom'),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -31,45 +31,185 @@ class HomeScreen extends StatelessWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.message),
+            icon: const Icon(Icons.message_outlined),
             onPressed: () { /* TODO: Navigate to Messages Screen */ },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          const StartPostWidget(),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text("No posts yet. Be the first to share!"));
-                }
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _QuickActions(),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    'Latest Updates',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const _NewsCarousel(),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    'Community Feed',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Post Feed
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SliverToBoxAdapter(child: Center(child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: CircularProgressIndicator(),
+                )));
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const SliverToBoxAdapter(child: Center(child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Text("No posts yet. Be the first to share!"),
+                )));
+              }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  itemCount: snapshot.data!.docs.length,
-                  itemBuilder: (context, index) {
+              return SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
                     final post = Post.fromFirestore(snapshot.data!.docs[index]);
                     return PostCard(post: post);
                   },
-                );
-              },
-            ),
+                  childCount: snapshot.data!.docs.length,
+                ),
+              );
+            },
           ),
+        ],
+      ),
+      floatingActionButton: const _FloatingPostButton(),
+    );
+  }
+}
+
+class _QuickActions extends StatelessWidget {
+  const _QuickActions();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 100,
+      margin: const EdgeInsets.only(top: 16),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          _buildAction(context, Icons.calculate, 'Tax Calc', Colors.blue),
+          _buildAction(context, Icons.receipt_long, 'GST', Colors.green),
+          _buildAction(context, Icons.work, 'Post Job', Colors.orange),
+          _buildAction(context, Icons.article, 'News', Colors.purple),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAction(BuildContext context, IconData icon, String label, Color color) {
+    return Container(
+      width: 80,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
         ],
       ),
     );
   }
 }
 
-// --- "Start a Post" Widget ---
-class StartPostWidget extends StatelessWidget {
-  const StartPostWidget({super.key});
+class _NewsCarousel extends StatelessWidget {
+  const _NewsCarousel();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 160,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: 3,
+        itemBuilder: (context, index) {
+          return Container(
+            width: 280,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  ),
+                  child: Center(child: Icon(Icons.image, color: Colors.grey[500])),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'New Tax Regime Updates 2025',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Read about the latest changes...',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _FloatingPostButton extends StatelessWidget {
+  const _FloatingPostButton();
 
   @override
   Widget build(BuildContext context) {
@@ -79,41 +219,20 @@ class StartPostWidget extends StatelessWidget {
     if (userProfile != null &&
         userProfile.userType == UserType.professional &&
         userProfile.isVerified) {
-      return Card(
-        margin: const EdgeInsets.all(8.0),
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        child: InkWell(
-          onTap: () {
-            Navigator.of(context).push(MaterialPageRoute(
-              builder: (context) => const CreatePostScreen(),
-              fullscreenDialog: true,
-            ));
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundImage: userProfile.profilePictureUrl != null
-                      ? NetworkImage(userProfile.profilePictureUrl!)
-                      : null,
-                  child: userProfile.profilePictureUrl == null ? const Icon(Icons.person) : null,
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text("Start a post", style: TextStyle(color: Colors.grey, fontSize: 16)),
-                ),
-              ],
-            ),
-          ),
-        ),
+      return FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => const CreatePostScreen(),
+            fullscreenDialog: true,
+          ));
+        },
+        child: const Icon(Icons.add),
       );
     }
     return const SizedBox.shrink();
   }
 }
+
 
 // --- PostCard Widget (Now with Inline Follow Button) ---
 class PostCard extends StatelessWidget {

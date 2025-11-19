@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:findom/screens/home/home_screen.dart';
 import 'package:findom/screens/jobs/job_board_screen.dart';
 import 'package:findom/screens/profile/profile_screen.dart';
+import 'package:findom/screens/learn/learn_screen.dart';
+import 'package:findom/screens/connect/connect_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AppShell extends StatefulWidget {
@@ -16,10 +18,9 @@ class _AppShellState extends State<AppShell> {
 
   static final List<Widget> _widgetOptions = <Widget>[
     const HomeScreen(),
+    const LearnScreen(),
+    const ConnectScreen(),
     const JobBoardScreen(),
-    // A placeholder for a dedicated notifications screen
-    const Center(child: Text('Notifications Screen - Coming Soon!')),
-    // The profile screen, showing the currently logged-in user.
     ProfileScreen(userId: FirebaseAuth.instance.currentUser!.uid),
   ];
 
@@ -46,14 +47,19 @@ class _AppShellState extends State<AppShell> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.school_outlined),
+            activeIcon: Icon(Icons.school),
+            label: 'Learn',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people_outline),
+            activeIcon: Icon(Icons.people),
+            label: 'Connect',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.work_outline),
             activeIcon: Icon(Icons.work),
             label: 'Jobs',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_none),
-            activeIcon: Icon(Icons.notifications),
-            label: 'Notifications',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
