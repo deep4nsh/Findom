@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:findom/services/theme_provider.dart';
+import 'package:findom/screens/auth/login_screen.dart'; // Assuming this exists or will be used for nav after logout
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -20,38 +25,78 @@ class SettingsScreen extends StatelessWidget {
           _buildSettingsTile(
             icon: Icons.dark_mode_outlined,
             title: 'Dark Mode',
-            trailing: Switch(value: false, onChanged: (val) {}),
+            trailing: Switch(
+              value: themeProvider.isDarkMode,
+              onChanged: (val) {
+                themeProvider.toggleTheme(val);
+              },
+            ),
           ),
           _buildSettingsTile(
             icon: Icons.language,
             title: 'Language',
             subtitle: 'English',
-            onTap: () {},
+            onTap: () {
+              // TODO: Implement Language Selection
+            },
           ),
           _buildSectionHeader('Account'),
           _buildSettingsTile(
             icon: Icons.person_outline,
             title: 'Edit Profile',
-            onTap: () {},
+            onTap: () {
+              // TODO: Navigate to Edit Profile Screen
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Edit Profile coming soon!')),
+              );
+            },
           ),
           _buildSettingsTile(
             icon: Icons.notifications_outlined,
             title: 'Notifications',
-            onTap: () {},
+            onTap: () {
+              // TODO: Navigate to Notification Settings
+            },
           ),
           _buildSectionHeader('Support'),
           _buildSettingsTile(
             icon: Icons.help_outline,
             title: 'Help & Support',
-            onTap: () {},
+            onTap: () {
+              // TODO: Navigate to Help
+            },
           ),
           _buildSettingsTile(
             icon: Icons.logout,
             title: 'Logout',
             color: Colors.red,
-            onTap: () async {
+            onTap: () => _showLogoutConfirmation(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Logout', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to logout?', style: GoogleFonts.poppins()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
               await FirebaseAuth.instance.signOut();
+              // Navigation to login is usually handled by the auth state stream wrapper in AppShell or main.dart
+              // But if we need to force it:
+              // Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
             },
+            child: Text('Logout', style: GoogleFonts.poppins(color: Colors.red)),
           ),
         ],
       ),

@@ -19,6 +19,8 @@ class UserProfile {
   // Status
   final bool isVerified;
 
+  bool get isProfessional => userType == UserType.professional;
+
   UserProfile({
     required this.uid,
     this.email = '',

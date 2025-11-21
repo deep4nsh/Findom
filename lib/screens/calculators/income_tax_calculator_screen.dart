@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:findom/services/tax_rules_service.dart';
 
 class IncomeTaxCalculatorScreen extends StatefulWidget {
   const IncomeTaxCalculatorScreen({super.key});
@@ -16,10 +17,12 @@ class _IncomeTaxCalculatorScreenState extends State<IncomeTaxCalculatorScreen> {
   final _80cController = TextEditingController();
   final _80dController = TextEditingController();
   final _otherDeductionsController = TextEditingController();
+  final _taxRulesService = TaxRulesService();
 
   double _oldRegimeTax = 0;
   double _newRegimeTax = 0;
   bool _calculated = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -31,98 +34,89 @@ class _IncomeTaxCalculatorScreenState extends State<IncomeTaxCalculatorScreen> {
     super.dispose();
   }
 
-  void _calculateTax() {
+  Future<void> _calculateTax() async {
     if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+
       final income = double.tryParse(_incomeController.text) ?? 0;
       final hra = double.tryParse(_hraController.text) ?? 0;
       final section80c = double.tryParse(_80cController.text) ?? 0;
       final section80d = double.tryParse(_80dController.text) ?? 0;
       final otherDeductions = double.tryParse(_otherDeductionsController.text) ?? 0;
 
+      final rules = await _taxRulesService.getTaxRules();
+
       setState(() {
-        _oldRegimeTax = _calculateOldRegimeTax(income, hra, section80c, section80d, otherDeductions);
-        _newRegimeTax = _calculateNewRegimeTax(income);
+        _oldRegimeTax = _calculateOldRegimeTax(income, hra, section80c, section80d, otherDeductions, rules);
+        _newRegimeTax = _calculateNewRegimeTax(income, rules);
         _calculated = true;
+        _isLoading = false;
       });
     }
   }
 
-  double _calculateOldRegimeTax(double income, double hra, double s80c, double s80d, double other) {
-    // Standard Deduction
-    double taxableIncome = income - 50000;
+  double _calculateOldRegimeTax(double income, double hra, double s80c, double s80d, double other, Map<String, dynamic> rules) {
+    double taxableIncome = income - (rules['standard_deduction_old'] ?? 50000);
 
-    // Exemptions & Deductions
     double totalDeductions = hra + s80c + s80d + other;
-    // Cap 80C at 1.5L
     if (s80c > 150000) totalDeductions = totalDeductions - s80c + 150000;
     
     taxableIncome -= totalDeductions;
     if (taxableIncome < 0) taxableIncome = 0;
 
-    // Tax Slabs (Old Regime)
-    // 0 - 2.5L : 0%
-    // 2.5L - 5L : 5%
-    // 5L - 10L : 20%
-    // > 10L : 30%
-
     double tax = 0;
-    if (taxableIncome > 1000000) {
-      tax += (taxableIncome - 1000000) * 0.30;
-      tax += 112500; // Tax for 10L
-    } else if (taxableIncome > 500000) {
-      tax += (taxableIncome - 500000) * 0.20;
-      tax += 12500; // Tax for 5L
-    } else if (taxableIncome > 250000) {
-      tax += (taxableIncome - 250000) * 0.05;
+    final slabs = List<Map<String, dynamic>>.from(rules['old_regime_slabs'] ?? []);
+    
+    double previousLimit = 0;
+    for (var slab in slabs) {
+      double limit = (slab['limit'] is int) ? (slab['limit'] as int).toDouble() : slab['limit'];
+      double rate = (slab['rate'] is int) ? (slab['rate'] as int).toDouble() : slab['rate'];
+
+      if (taxableIncome > previousLimit) {
+        double taxableAmount = (taxableIncome > limit) ? (limit - previousLimit) : (taxableIncome - previousLimit);
+        // Handle infinity
+        if (limit == double.infinity) taxableAmount = taxableIncome - previousLimit;
+        
+        tax += taxableAmount * rate;
+        previousLimit = limit;
+      }
     }
 
-    // Rebate u/s 87A (Old Regime limit 5L)
-    if (taxableIncome <= 500000) {
+    if (taxableIncome <= (rules['rebate_limit_old'] ?? 500000)) {
       tax = 0;
     }
 
-    // Cess 4%
-    tax += tax * 0.04;
+    tax += tax * (rules['cess_rate'] ?? 0.04);
     return tax;
   }
 
-  double _calculateNewRegimeTax(double income) {
-    // Standard Deduction (New Regime FY 24-25)
-    double taxableIncome = income - 75000;
+  double _calculateNewRegimeTax(double income, Map<String, dynamic> rules) {
+    double taxableIncome = income - (rules['standard_deduction_new'] ?? 75000);
     if (taxableIncome < 0) taxableIncome = 0;
 
-    // Tax Slabs (New Regime FY 24-25)
-    // 0 - 3L : 0%
-    // 3L - 7L : 5%
-    // 7L - 10L : 10%
-    // 10L - 12L : 15%
-    // 12L - 15L : 20%
-    // > 15L : 30%
-
     double tax = 0;
-    if (taxableIncome > 1500000) {
-      tax += (taxableIncome - 1500000) * 0.30;
-      tax += 150000; // Tax for 15L
-    } else if (taxableIncome > 1200000) {
-      tax += (taxableIncome - 1200000) * 0.20;
-      tax += 90000;
-    } else if (taxableIncome > 1000000) {
-      tax += (taxableIncome - 1000000) * 0.15;
-      tax += 60000;
-    } else if (taxableIncome > 700000) {
-      tax += (taxableIncome - 700000) * 0.10;
-      tax += 30000;
-    } else if (taxableIncome > 300000) {
-      tax += (taxableIncome - 300000) * 0.05;
+    final slabs = List<Map<String, dynamic>>.from(rules['new_regime_slabs'] ?? []);
+    
+    double previousLimit = 0;
+    for (var slab in slabs) {
+      double limit = (slab['limit'] is int) ? (slab['limit'] as int).toDouble() : slab['limit'];
+      double rate = (slab['rate'] is int) ? (slab['rate'] as int).toDouble() : slab['rate'];
+
+      if (taxableIncome > previousLimit) {
+        double taxableAmount = (taxableIncome > limit) ? (limit - previousLimit) : (taxableIncome - previousLimit);
+         // Handle infinity
+        if (limit == double.infinity) taxableAmount = taxableIncome - previousLimit;
+
+        tax += taxableAmount * rate;
+        previousLimit = limit;
+      }
     }
 
-    // Rebate u/s 87A (New Regime limit 7L taxable income, effectively 7.75L gross)
-    if (taxableIncome <= 700000) {
+    if (taxableIncome <= (rules['rebate_limit_new'] ?? 700000)) {
       tax = 0;
     }
 
-    // Cess 4%
-    tax += tax * 0.04;
+    tax += tax * (rules['cess_rate'] ?? 0.04);
     return tax;
   }
 
@@ -186,15 +180,17 @@ class _IncomeTaxCalculatorScreenState extends State<IncomeTaxCalculatorScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _calculateTax,
+                  onPressed: _isLoading ? null : _calculateTax,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue[700],
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text(
-                    'Calculate Tax',
-                    style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
-                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(
+                          'Calculate Tax',
+                          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                        ),
                 ),
               ),
               if (_calculated) ...[

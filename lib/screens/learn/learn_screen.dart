@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:findom/screens/learn/calculator_list_screen.dart';
+import 'package:findom/models/module_content.dart';
+import 'package:findom/screens/learn/module_detail_screen.dart';
 
 class LearnScreen extends StatelessWidget {
   const LearnScreen({super.key});
@@ -116,12 +118,14 @@ class LearnScreen extends StatelessWidget {
   }
 
   Widget _buildModulesList() {
-    final modules = [
-      {'title': 'Income Tax Basics', 'icon': Icons.account_balance_wallet},
-      {'title': 'GST Explained', 'icon': Icons.receipt_long},
-      {'title': 'Business Registration', 'icon': Icons.business},
-      {'title': 'Investment 101', 'icon': Icons.trending_up},
-    ];
+    final modules = ModuleContent.sampleModules;
+    // Map module IDs to icons
+    final Map<String, IconData> moduleIcons = {
+      'income_tax_basics': Icons.account_balance_wallet,
+      'gst_explained': Icons.receipt_long,
+      'business_registration': Icons.business,
+      'investment_101': Icons.trending_up,
+    };
 
     return ListView.separated(
       shrinkWrap: true,
@@ -150,15 +154,20 @@ class LearnScreen extends StatelessWidget {
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(module['icon'] as IconData, color: Colors.black87),
+              child: Icon(moduleIcons[module.id] ?? Icons.book, color: Colors.black87),
             ),
             title: Text(
-              module['title'] as String,
+              module.title,
               style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // TODO: Navigate to Module Detail
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ModuleDetailScreen(module: module),
+                ),
+              );
             },
           ),
         );

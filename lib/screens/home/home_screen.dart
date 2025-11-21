@@ -1,91 +1,120 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:findom/models/post_model.dart';
 import 'package:findom/models/user_profile_model.dart';
-import 'package:findom/services/locator.dart';
-import 'package:findom/services/post_service.dart';
 import 'package:findom/services/user_profile_provider.dart';
-import 'package:findom/services/following_provider.dart';
-import 'package:findom/screens/posts/comments_screen.dart';
-import 'package:findom/screens/search/search_screen.dart';
 import 'package:findom/screens/posts/create_post_screen.dart';
-import 'home_view_model.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:findom/widgets/post_card.dart';
+import 'package:findom/screens/home/search_screen.dart';
+import 'package:findom/screens/learn/calculator_list_screen.dart';
+import 'package:findom/services/news_service.dart';
+import 'package:findom/screens/home/news_detail_screen.dart';
 
-// --- Main HomeScreen Widget ---
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProfileProvider>(context);
+    final isPro = userProvider.userProfile?.isProfessional ?? false;
+
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text('Findom'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SearchScreen()));
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.message_outlined),
-            onPressed: () { /* TODO: Navigate to Messages Screen */ },
-          ),
-        ],
-      ),
+      backgroundColor: Colors.grey[50],
       body: CustomScrollView(
         slivers: [
+          SliverAppBar(
+            floating: true,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            title: Text(
+              'Findom',
+              style: GoogleFonts.poppins(
+                color: Colors.blue[800],
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.search, color: Colors.black87),
+                onPressed: () {
+                  Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SearchScreen()));
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.message_outlined, color: Colors.black87),
+                onPressed: () {
+                  // TODO: Navigate to Messages
+                },
+              ),
+            ],
+          ),
           SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _QuickActions(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Text(
-                    'Latest Updates',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    'Market Updates',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 const _NewsCarousel(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Text(
                     'Community Feed',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
+                const SizedBox(height: 12),
               ],
             ),
           ),
-          // Post Feed
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SliverToBoxAdapter(child: Center(child: Padding(
-                  padding: EdgeInsets.all(32.0),
-                  child: CircularProgressIndicator(),
-                )));
+                return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
               }
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const SliverToBoxAdapter(child: Center(child: Padding(
-                  padding: EdgeInsets.all(32.0),
-                  child: Text("No posts yet. Be the first to share!"),
-                )));
+                return const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Center(child: Text("No posts yet. Be the first to share!")),
+                  ),
+                );
               }
 
               return SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final post = Post.fromFirestore(snapshot.data!.docs[index]);
-                    return PostCard(post: post);
+                    final doc = snapshot.data!.docs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    return PostCard(
+                      postId: doc.id,
+                      userId: data['authorId'] ?? '',
+                      userName: data['authorName'] ?? 'Unknown',
+                      userImage: data['authorProfilePictureUrl'],
+                      content: data['content'] ?? '',
+                      imageUrl: data['imageUrl'],
+                      likes: List<String>.from(data['likes'] ?? []),
+                      timestamp: (data['timestamp'] as Timestamp).toDate(),
+                    );
                   },
                   childCount: snapshot.data!.docs.length,
                 ),
@@ -94,7 +123,15 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: const _FloatingPostButton(),
+      floatingActionButton: isPro
+          ? FloatingActionButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const CreatePostScreen()));
+              },
+              backgroundColor: Colors.blue[800],
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }
@@ -104,26 +141,35 @@ class _QuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: 100,
-      margin: const EdgeInsets.only(top: 16),
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          _buildAction(context, Icons.calculate, 'Tax Calc', Colors.blue),
-          _buildAction(context, Icons.receipt_long, 'GST', Colors.green),
-          _buildAction(context, Icons.work, 'Post Job', Colors.orange),
-          _buildAction(context, Icons.article, 'News', Colors.purple),
+          _buildActionItem(context, Icons.calculate, 'Tax Calc', Colors.blue, () {
+             Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorListScreen()));
+          }),
+          const SizedBox(width: 16),
+          _buildActionItem(context, Icons.percent, 'GST', Colors.orange, () {
+             Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorListScreen()));
+          }),
+          const SizedBox(width: 16),
+          _buildActionItem(context, Icons.work, 'Post Job', Colors.purple, () {
+             // TODO: Navigate to Post Job
+          }),
+          const SizedBox(width: 16),
+          _buildActionItem(context, Icons.newspaper, 'News', Colors.green, () {
+             // Scroll to news section or open news tab
+          }),
         ],
       ),
     );
   }
 
-  Widget _buildAction(BuildContext context, IconData icon, String label, Color color) {
-    return Container(
-      width: 80,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
+  Widget _buildActionItem(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -133,10 +179,13 @@ class _QuickActions extends StatelessWidget {
               color: color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color),
+            child: Icon(icon, color: color, size: 28),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
         ],
       ),
     );
@@ -148,246 +197,94 @@ class _NewsCarousel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final newsService = NewsService();
+
     return SizedBox(
-      height: 160,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemCount: 3,
-        itemBuilder: (context, index) {
-          return Container(
-            width: 280,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
+      height: 180,
+      child: FutureBuilder<List<NewsArticle>>(
+        future: newsService.getTopHeadlines(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: 3,
+              itemBuilder: (context, index) => Container(
+                width: 280,
+                margin: const EdgeInsets.only(right: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 100,
+              ),
+            );
+          }
+
+          if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text("Failed to load news"));
+          }
+
+          final articles = snapshot.data!;
+          return ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: articles.length,
+            itemBuilder: (context, index) {
+              final article = articles[index];
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => NewsDetailScreen(article: article)),
+                  );
+                },
+                child: Container(
+                  width: 280,
+                  margin: const EdgeInsets.only(right: 16),
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(16),
+                    image: DecorationImage(
+                      image: NetworkImage(article.imageUrl),
+                      fit: BoxFit.cover,
+                      colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.4), BlendMode.darken),
+                    ),
                   ),
-                  child: Center(child: Icon(Icons.image, color: Colors.grey[500])),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        'New Tax Regime Updates 2025',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[600],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          article.source,
+                          style: GoogleFonts.poppins(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
-                        'Read about the latest changes...',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        article.title,
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
+              );
+            },
           );
         },
       ),
-    );
-  }
-}
-
-class _FloatingPostButton extends StatelessWidget {
-  const _FloatingPostButton();
-
-  @override
-  Widget build(BuildContext context) {
-    final profileProvider = Provider.of<UserProfileProvider>(context);
-    final userProfile = profileProvider.userProfile;
-
-    if (userProfile != null &&
-        userProfile.userType == UserType.professional &&
-        userProfile.isVerified) {
-      return FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (context) => const CreatePostScreen(),
-            fullscreenDialog: true,
-          ));
-        },
-        child: const Icon(Icons.add),
-      );
-    }
-    return const SizedBox.shrink();
-  }
-}
-
-
-// --- PostCard Widget (Now with Inline Follow Button) ---
-class PostCard extends StatelessWidget {
-  final Post post;
-  final PostService _postService = locator<PostService>();
-
-  PostCard({super.key, required this.post});
-
-  Future<DocumentSnapshot?> _getAuthorDocument(String uid) async {
-    final collections = ['professionals', 'students', 'general_users'];
-    for (final collection in collections) {
-      final doc = await FirebaseFirestore.instance.collection(collection).doc(uid).get();
-      if (doc.exists) {
-        return doc;
-      }
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    final isLiked = userId != null && post.likes.contains(userId);
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildAuthorHeader(context, userId),
-            const SizedBox(height: 16),
-            Text(post.content, style: const TextStyle(fontSize: 15)),
-            if (post.imageUrl != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: Image.network(post.imageUrl!),
-              ),
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            _buildActionButtons(context, isLiked),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAuthorHeader(BuildContext context, String? currentUserId) {
-    return FutureBuilder<DocumentSnapshot?>(
-      future: _getAuthorDocument(post.authorId),
-      builder: (context, authorSnapshot) {
-        if (!authorSnapshot.hasData || authorSnapshot.data == null) {
-          return const Row(children: [CircleAvatar(radius: 22), SizedBox(width: 12), Text("Loading...")]);
-        }
-        final authorProfile = UserProfile.fromFirestore(authorSnapshot.data!);
-        return Row(
-          children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundImage: authorProfile.profilePictureUrl != null
-                  ? NetworkImage(authorProfile.profilePictureUrl!)
-                  : null,
-              child: authorProfile.profilePictureUrl == null ? const Icon(Icons.person) : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(authorProfile.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text(authorProfile.headline, style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ),
-            ),
-            // Inline Follow Button Logic
-            if (post.authorId != currentUserId) // Don't show follow button for your own posts
-              Consumer<FollowingProvider>(
-                builder: (context, followingProvider, child) {
-                  final bool isFollowing = followingProvider.isFollowing(post.authorId);
-                  return TextButton.icon(
-                    icon: Icon(
-                      isFollowing ? Icons.check : Icons.add,
-                      size: 18,
-                      color: isFollowing ? Colors.grey : Theme.of(context).primaryColor,
-                    ),
-                    label: Text(
-                      isFollowing ? 'Following' : 'Follow',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isFollowing ? Colors.grey : Theme.of(context).primaryColor,
-                      ),
-                    ),
-                    onPressed: () {
-                      if (isFollowing) {
-                        followingProvider.unfollow(post.authorId);
-                      } else {
-                        followingProvider.follow(post.authorId);
-                      }
-                    },
-                  );
-                },
-              )
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context, bool isLiked) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        TextButton.icon(
-          onPressed: () => _postService.toggleLike(post.id, post.likes),
-          icon: Icon(
-            isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
-            color: isLiked ? Theme.of(context).primaryColor : Colors.grey,
-            size: 20,
-          ),
-          label: Text("Like (${post.likeCount})"),
-        ),
-        _buildCommentButton(context),
-        TextButton.icon(
-          onPressed: () { /* TODO: Implement share */ },
-          icon: const Icon(Icons.share, color: Colors.grey, size: 20),
-          label: const Text("Share"),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCommentButton(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('posts')
-          .doc(post.id)
-          .collection('comments')
-          .snapshots(),
-      builder: (context, snapshot) {
-        final commentCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
-        return TextButton.icon(
-          icon: const Icon(Icons.comment_outlined, color: Colors.grey, size: 20),
-          label: Text("Comment ($commentCount)"),
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => CommentsScreen(postId: post.id),
-              ),
-            );
-          },
-        );
-      },
     );
   }
 }
