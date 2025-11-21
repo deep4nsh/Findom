@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:findom/models/user_profile_model.dart';
+import 'package:findom/services/username_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final UserProfile profile;
@@ -13,16 +14,23 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _usernameService = UsernameService();
+  
   late TextEditingController _fullNameController;
+  late TextEditingController _usernameController;
   late TextEditingController _headlineController;
   late TextEditingController _educationController;
   late TextEditingController _specializationController;
   List<String> _specializations = [];
+  
+  bool _isCheckingUsername = false;
+  String? _usernameError;
 
   @override
   void initState() {
     super.initState();
     _fullNameController = TextEditingController(text: widget.profile.fullName);
+    _usernameController = TextEditingController(text: widget.profile.username);
     _headlineController = TextEditingController(text: widget.profile.headline);
     _educationController = TextEditingController(text: widget.profile.education);
     _specializationController = TextEditingController();
@@ -44,16 +52,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
+      final newUsername = _usernameController.text.trim();
+      final oldUsername = widget.profile.username;
+
+      // Check username availability if changed
+      if (newUsername.isNotEmpty && newUsername != oldUsername) {
+        setState(() => _isCheckingUsername = true);
+        final isAvailable = await _usernameService.isUsernameAvailable(newUsername);
+        setState(() => _isCheckingUsername = false);
+
+        if (!isAvailable) {
+          setState(() => _usernameError = 'Username is already taken');
+          return;
+        }
+        
+        // Reserve new username
+        try {
+          await _usernameService.reserveUsername(newUsername, widget.profile.uid);
+          // Release old username if it existed
+          if (oldUsername != null && oldUsername.isNotEmpty) {
+            await _usernameService.releaseUsername(oldUsername);
+          }
+        } catch (e) {
+          setState(() => _usernameError = 'Failed to reserve username');
+          return;
+        }
+      }
+
       final updatedProfile = UserProfile(
         uid: widget.profile.uid,
         userType: widget.profile.userType,
         email: widget.profile.email,
         phoneNumber: widget.profile.phoneNumber,
         isVerified: widget.profile.isVerified,
-        profilePictureUrl: widget.profile.profilePictureUrl, // Not handling image upload yet
+        profilePictureUrl: widget.profile.profilePictureUrl,
         
-        // Updated fields from form
+        // Updated fields
         fullName: _fullNameController.text,
+        username: newUsername.isEmpty ? null : newUsername,
         headline: _headlineController.text,
         education: _educationController.text,
         specializations: _specializations,
@@ -64,10 +100,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       await FirebaseFirestore.instance
           .collection(collectionName)
           .doc(widget.profile.uid)
-          .set(updatedProfile.toFirestore(), SetOptions(merge: true)); // Use merge to avoid overwriting fields
+          .set(updatedProfile.toFirestore(), SetOptions(merge: true));
 
       if (mounted) {
         Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully')),
+        );
       }
     }
   }
@@ -89,8 +128,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         title: const Text('Edit Profile'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _saveProfile,
+            icon: _isCheckingUsername 
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.save),
+            onPressed: _isCheckingUsername ? null : _saveProfile,
           ),
         ],
       ),
@@ -105,6 +146,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 controller: _fullNameController,
                 decoration: const InputDecoration(labelText: 'Full Name'),
                 validator: (value) => value!.isEmpty ? 'Please enter your name' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _usernameController,
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  prefixText: '@',
+                  errorText: _usernameError,
+                  helperText: 'Unique handle for identification',
+                ),
+                validator: _usernameService.validateUsername,
+                onChanged: (_) {
+                  if (_usernameError != null) setState(() => _usernameError = null);
+                },
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -164,9 +219,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
+    _usernameController.dispose();
     _headlineController.dispose();
     _educationController.dispose();
     _specializationController.dispose();
     super.dispose();
   }
 }
+

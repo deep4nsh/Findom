@@ -35,22 +35,38 @@ class _SearchScreenState extends State<SearchScreen> {
       final results = <UserProfile>[];
       final collections = ['professionals', 'students', 'general_users'];
 
-      // Firestore doesn't support OR queries across collections easily, so we query each independently
-      // and combine results.
-      for (final collection in collections) {
-        final snapshot = await FirebaseFirestore.instance
-            .collection(collection)
-            .where('fullName', isGreaterThanOrEqualTo: query)
-            .where('fullName', isLessThanOrEqualTo: '$query\uf8ff')
-            .limit(10) // Limit per collection to avoid too many reads
-            .get();
+      // 1. Search by Username (Exact match)
+      if (query.startsWith('@')) {
+        final username = query.substring(1).toLowerCase();
+        final usernameDoc = await FirebaseFirestore.instance.collection('usernames').doc(username).get();
+        
+        if (usernameDoc.exists) {
+          final uid = usernameDoc.data()!['uid'];
+          // Find which collection the user is in
+          for (final collection in collections) {
+            final userDoc = await FirebaseFirestore.instance.collection(collection).doc(uid).get();
+            if (userDoc.exists) {
+              results.add(UserProfile.fromFirestore(userDoc));
+              break;
+            }
+          }
+        }
+      } else {
+        // 2. Search by Full Name (Starts with)
+        for (final collection in collections) {
+          final snapshot = await FirebaseFirestore.instance
+              .collection(collection)
+              .where('fullName', isGreaterThanOrEqualTo: query)
+              .where('fullName', isLessThanOrEqualTo: '$query\uf8ff')
+              .limit(5)
+              .get();
 
-        for (final doc in snapshot.docs) {
-          try {
-            results.add(UserProfile.fromFirestore(doc));
-          } catch (e) {
-            // Skip malformed documents
-            debugPrint('Error parsing user profile: $e');
+          for (final doc in snapshot.docs) {
+            try {
+              results.add(UserProfile.fromFirestore(doc));
+            } catch (e) {
+              debugPrint('Error parsing user profile: $e');
+            }
           }
         }
       }
@@ -92,7 +108,7 @@ class _SearchScreenState extends State<SearchScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search by name...',
+                hintText: 'Search by name or @username...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),

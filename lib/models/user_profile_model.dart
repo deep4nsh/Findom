@@ -15,6 +15,7 @@ class UserProfile {
   final String? profilePictureUrl;
   final List<String> specializations;
   final String education;
+  final String? username; // Nullable for existing users
 
   // Status
   final bool isVerified;
@@ -31,6 +32,7 @@ class UserProfile {
     this.profilePictureUrl,
     this.specializations = const [],
     this.education = '',
+    this.username,
     this.isVerified = false,
   });
 
@@ -58,6 +60,7 @@ class UserProfile {
       profilePictureUrl: data['profilePictureUrl'],
       specializations: List<String>.from(data['specializations'] ?? []),
       education: data['education'] ?? '',
+      username: data['username'],
       isVerified: data['isVerified'] ?? false,
     );
   }
@@ -74,6 +77,7 @@ class UserProfile {
       'profilePictureUrl': profilePictureUrl,
       'specializations': specializations,
       'education': education,
+      'username': username,
       'isVerified': isVerified,
     };
   }
