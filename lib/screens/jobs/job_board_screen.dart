@@ -46,40 +46,143 @@ class JobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // If company name is provided in the job, use it.
+    // Otherwise, fetch the poster's name from general_users.
+    if (job.companyName != null && job.companyName!.isNotEmpty) {
+      return _buildCard(context, name: job.companyName!, logoUrl: null);
+    }
+
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('companies').doc(job.companyId).get(),
-      builder: (context, companySnapshot) {
-        if (companySnapshot.hasError) {
-          return const ListTile(title: Text('Company info unavailable'));
+      future: FirebaseFirestore.instance.collection('general_users').doc(job.companyId).get(),
+      builder: (context, userSnapshot) {
+        if (userSnapshot.hasError) {
+          return _buildCard(context, name: 'Unknown Poster');
         }
-        if (companySnapshot.connectionState == ConnectionState.waiting) {
-          return const ListTile(title: Text('Loading...'));
+        if (userSnapshot.connectionState == ConnectionState.waiting) {
+          return const Card(
+             margin: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+             child: ListTile(title: Text('Loading...')),
+          );
         }
-        if (!companySnapshot.hasData) {
-          return const ListTile(title: Text('Could not load company'));
+        
+        String name = 'Unknown Poster';
+        String? profilePic;
+        
+        if (userSnapshot.hasData && userSnapshot.data!.exists) {
+          final data = userSnapshot.data!.data() as Map<String, dynamic>;
+          name = data['fullName'] ?? 'Unknown Poster';
+          // Assuming 'profilePic' or 'photoUrl' might exist in future, or use a default
         }
 
-        final company = Company.fromFirestore(companySnapshot.data!);
-
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          child: ListTile(
-            leading: company.logoUrl != null
-                ? CircleAvatar(
-                    backgroundImage: NetworkImage(company.logoUrl!),
-                    backgroundColor: Colors.grey[200],
-                  )
-                : const CircleAvatar(child: Icon(Icons.business)),
-            title: Text(job.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('${company.name} • ${job.location}'),
-            onTap: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) => JobDetailScreen(job: job),
-              ));
-            },
-          ),
-        );
+        return _buildCard(context, name: name, logoUrl: profilePic);
       },
     );
+  }
+
+  Widget _buildCard(BuildContext context, {required String name, String? logoUrl}) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => JobDetailScreen(job: job),
+          ));
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: logoUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(logoUrl, fit: BoxFit.cover),
+                          )
+                        : const Icon(Icons.business, color: Colors.blue),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          job.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          name,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (job.employmentType != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        job.employmentType.toString().split('.').last,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[500]),
+                  const SizedBox(width: 4),
+                  Text(
+                    job.location,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                  const Spacer(),
+                  Text(
+                    _formatDate(job.postedDate),
+                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(Timestamp timestamp) {
+    final now = DateTime.now();
+    final date = timestamp.toDate();
+    final diff = now.difference(date);
+
+    if (diff.inDays > 0) {
+      return '${diff.inDays}d ago';
+    } else if (diff.inHours > 0) {
+      return '${diff.inHours}h ago';
+    } else {
+      return 'Just now';
+    }
   }
 }

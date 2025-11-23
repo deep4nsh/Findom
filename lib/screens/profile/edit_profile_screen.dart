@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:findom/models/user_profile_model.dart';
+import 'package:findom/services/auth_service.dart';
 import 'package:findom/services/username_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -21,10 +23,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _headlineController;
   late TextEditingController _educationController;
   late TextEditingController _specializationController;
+  late TextEditingController _phoneController;
   List<String> _specializations = [];
   
   bool _isCheckingUsername = false;
   String? _usernameError;
+  bool _isVerifyingPhone = false;
 
   @override
   void initState() {
@@ -33,20 +37,128 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _usernameController = TextEditingController(text: widget.profile.username);
     _headlineController = TextEditingController(text: widget.profile.headline);
     _educationController = TextEditingController(text: widget.profile.education);
+    _phoneController = TextEditingController(text: widget.profile.phoneNumber);
     _specializationController = TextEditingController();
     _specializations = List<String>.from(widget.profile.specializations);
   }
   
   String _getCollectionForUserType(UserType userType) {
-    switch (userType) {
-      case UserType.professional:
-        return 'professionals';
-      case UserType.student:
-        return 'students';
-      case UserType.company:
-        return 'companies';
-      case UserType.general:
-        return 'general_users';
+    return 'general_users'; // Unified collection
+  }
+
+  Future<void> _verifyPhone() async {
+    final phone = _phoneController.text.trim();
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter a phone number")),
+      );
+      return;
+    }
+
+    // Basic validation for Indian numbers
+    final formattedPhone = phone.startsWith('+91') ? phone : '+91$phone';
+    if (!RegExp(r'^\+91\d{10}$').hasMatch(formattedPhone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Enter a valid 10-digit Indian phone number")),
+      );
+      return;
+    }
+
+    setState(() => _isVerifyingPhone = true);
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: formattedPhone,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Auto-resolution (Android only)
+          await FirebaseAuth.instance.currentUser?.linkWithCredential(credential);
+          _updatePhoneStatus(formattedPhone);
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          setState(() => _isVerifyingPhone = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Verification failed: ${e.message}")),
+          );
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          setState(() => _isVerifyingPhone = false);
+          _showOtpDialog(verificationId, formattedPhone);
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          // Auto-retrieval timeout
+        },
+      );
+    } catch (e) {
+      setState(() => _isVerifyingPhone = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
+  }
+
+  void _showOtpDialog(String verificationId, String phone) {
+    final otpController = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Enter OTP"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("Enter the OTP sent to $phone"),
+            const SizedBox(height: 16),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: "OTP"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final smsCode = otpController.text.trim();
+              if (smsCode.isNotEmpty) {
+                try {
+                  await AuthService.linkPhoneNumberWithOTP(verificationId, smsCode);
+                  if (mounted) {
+                    Navigator.pop(context);
+                    _updatePhoneStatus(phone);
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Invalid OTP: $e")),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text("Verify"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updatePhoneStatus(String phone) async {
+    await FirebaseFirestore.instance.collection('general_users').doc(widget.profile.uid).update({
+      'phoneNumber': phone,
+      'isVerified': true,
+    });
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Phone number verified successfully!")),
+      );
+      setState(() {
+        // Update local state if needed, or just rely on parent rebuild
+      });
     }
   }
 
@@ -83,8 +195,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         uid: widget.profile.uid,
         userType: widget.profile.userType,
         email: widget.profile.email,
-        phoneNumber: widget.profile.phoneNumber,
-        isVerified: widget.profile.isVerified,
+        phoneNumber: _phoneController.text.trim(), // Save the phone number even if not verified yet? Or only if verified?
+        // Let's save it, verification is separate status
+        isVerified: widget.profile.isVerified, // This should ideally come from Firestore stream
         profilePictureUrl: widget.profile.profilePictureUrl,
         
         // Updated fields
@@ -162,6 +275,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 },
               ),
               const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _phoneController,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone Number',
+                        hintText: '9876543210',
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (widget.profile.isVerified)
+                    const Icon(Icons.check_circle, color: Colors.green)
+                  else
+                    ElevatedButton(
+                      onPressed: _isVerifyingPhone ? null : _verifyPhone,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      child: _isVerifyingPhone
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Text('Verify'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _headlineController,
                 decoration: const InputDecoration(labelText: 'Headline'),
@@ -223,6 +364,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _headlineController.dispose();
     _educationController.dispose();
     _specializationController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 }

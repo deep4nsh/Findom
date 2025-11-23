@@ -1,20 +1,66 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  // Register with Email & Password
-  static Future<UserCredential> registerWithEmailPassword(String email, String password) async {
+  // Sign in with Google
+  static Future<UserCredential> signInWithGoogle() async {
     try {
-      return await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      // Trigger the authentication flow
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        throw Exception("Google Sign-In aborted by user.");
+      }
+
+      // Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Create a new credential
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase with the Google User Credential
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        // Check if user exists in Firestore
+        final userDoc = await FirebaseFirestore.instance.collection('general_users').doc(user.uid).get();
+
+        if (!userDoc.exists) {
+          // Create new user document
+          await FirebaseFirestore.instance.collection('general_users').doc(user.uid).set({
+            'uid': user.uid,
+            'email': user.email,
+            'fullName': user.displayName ?? '',
+            'profilePictureUrl': user.photoURL,
+            'phoneNumber': '', // To be verified later
+            'isVerified': false,
+            'createdAt': FieldValue.serverTimestamp(),
+            'userType': 'general',
+            'specializations': [],
+            'education': '',
+            'headline': '',
+          });
+        }
+      }
+
+      return userCredential;
     } catch (e) {
+      debugPrint("Google Sign-In Error: $e");
       rethrow;
     }
   }
 
   // Logout the user
   static Future<void> logout() async {
+    await _googleSignIn.signOut();
     await _auth.signOut();
   }
 
@@ -33,6 +79,13 @@ class AuthService {
       );
 
       await user.linkWithCredential(phoneCredential);
+      
+      // Update Firestore
+      await FirebaseFirestore.instance.collection('general_users').doc(user.uid).update({
+        'phoneNumber': user.phoneNumber,
+        'isVerified': true,
+      });
+      
       debugPrint("✅ Phone number linked successfully.");
     } on FirebaseAuthException catch (e) {
       if (e.code == 'provider-already-linked') {

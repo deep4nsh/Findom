@@ -16,13 +16,19 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
 
-  static final List<Widget> _widgetOptions = <Widget>[
-    const HomeScreen(),
-    const LearnScreen(),
-    const ConnectScreen(),
-    const JobBoardScreen(),
-    ProfileScreen(userId: FirebaseAuth.instance.currentUser!.uid),
-  ];
+  List<Widget> get _widgetOptions {
+    final user = FirebaseAuth.instance.currentUser;
+    return <Widget>[
+      const HomeScreen(),
+      const LearnScreen(),
+      const ConnectScreen(),
+      const JobBoardScreen(),
+      if (user != null)
+        ProfileScreen(userId: user.uid)
+      else
+        const Center(child: Text("Please log in")),
+    ];
+  }
 
   void _onItemTapped(int index) {
     setState(() {

@@ -10,6 +10,11 @@ class Job {
   final String location;
   final EmploymentType employmentType;
   final Timestamp postedDate;
+  final String? salaryRange;
+  final String? experienceLevel;
+  final String? requirements;
+  final String? benefits;
+  final String? companyName;
 
   Job({
     required this.id,
@@ -19,6 +24,11 @@ class Job {
     required this.location,
     required this.employmentType,
     required this.postedDate,
+    this.salaryRange,
+    this.experienceLevel,
+    this.requirements,
+    this.benefits,
+    this.companyName,
   });
 
   factory Job.fromFirestore(DocumentSnapshot doc) {
@@ -30,10 +40,15 @@ class Job {
       description: data['description'] ?? '',
       location: data['location'] ?? '',
       employmentType: EmploymentType.values.firstWhere(
-        (e) => e.toString() == data['employmentType'],
+        (e) => e.toString() == 'EmploymentType.${data['employmentType']}',
         orElse: () => EmploymentType.fullTime,
       ),
       postedDate: data['postedDate'] ?? Timestamp.now(),
+      salaryRange: data['salaryRange'],
+      experienceLevel: data['experienceLevel'],
+      requirements: data['requirements'],
+      benefits: data['benefits'],
+      companyName: data['companyName'],
     );
   }
 
@@ -43,8 +58,13 @@ class Job {
       'title': title,
       'description': description,
       'location': location,
-      'employmentType': employmentType.toString(),
+      'employmentType': employmentType.toString().split('.').last,
       'postedDate': postedDate,
+      'salaryRange': salaryRange,
+      'experienceLevel': experienceLevel,
+      'requirements': requirements,
+      'benefits': benefits,
+      'companyName': companyName,
     };
   }
 }
