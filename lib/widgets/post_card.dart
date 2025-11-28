@@ -141,7 +141,7 @@ class PostCard extends StatelessWidget {
 
   Widget _buildActionButtons(BuildContext context, bool isLiked) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         TextButton.icon(
           onPressed: _toggleLike,
@@ -151,16 +151,27 @@ class PostCard extends StatelessWidget {
             size: 20,
           ),
           label: Text("Like (${likes.length})"),
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(50, 30),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
         ),
         _buildCommentButton(context),
         TextButton.icon(
           onPressed: () { /* TODO: Implement share */ },
           icon: const Icon(Icons.share, color: Colors.grey, size: 20),
           label: const Text("Share"),
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(50, 30),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
         ),
       ],
     );
   }
+
 
   Widget _buildCommentButton(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
