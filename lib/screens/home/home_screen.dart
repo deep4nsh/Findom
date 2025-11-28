@@ -142,36 +142,36 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 100,
+      height: 90,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          _buildActionItem(context, Icons.calculate, 'Tax Calc', Colors.blue, () {
+          _buildActionItem(context, Icons.calculate_outlined, 'Tax Calc', () {
              Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorListScreen()));
           }),
-          const SizedBox(width: 16),
-          _buildActionItem(context, Icons.percent, 'GST', Colors.orange, () {
+          const SizedBox(width: 24),
+          _buildActionItem(context, Icons.percent_outlined, 'GST', () {
              Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorListScreen()));
           }),
-          const SizedBox(width: 16),
-          _buildActionItem(context, Icons.work, 'Post Job', Colors.purple, () {
+          const SizedBox(width: 24),
+          _buildActionItem(context, Icons.work_outline, 'Post Job', () {
              // TODO: Navigate to Post Job
           }),
-          const SizedBox(width: 16),
-          _buildActionItem(context, Icons.newspaper, 'News', Colors.green, () {
+          const SizedBox(width: 24),
+          _buildActionItem(context, Icons.newspaper_outlined, 'News', () {
              // Scroll to news section or open news tab
           }),
-          const SizedBox(width: 16),
-          _buildActionItem(context, Icons.alarm, 'Reminders', Colors.teal, () {
+          const SizedBox(width: 24),
+          _buildActionItem(context, Icons.alarm, 'Reminders', () {
              Navigator.pushNamed(context, '/reminders');
           }),
-          const SizedBox(width: 16),
-          _buildActionItem(context, Icons.explore, 'Explore', Colors.indigo, () {
+          const SizedBox(width: 24),
+          _buildActionItem(context, Icons.explore_outlined, 'Explore', () {
              Navigator.pushNamed(context, '/explore');
           }),
-          const SizedBox(width: 16),
-          _buildActionItem(context, Icons.calculate, 'SIP Calc', Colors.orange, () {
+          const SizedBox(width: 24),
+          _buildActionItem(context, Icons.calculate_outlined, 'SIP Calc', () {
              Navigator.pushNamed(context, '/sip-calculator');
           }),
         ],
@@ -179,7 +179,8 @@ class _QuickActions extends StatelessWidget {
     );
   }
 
-  Widget _buildActionItem(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _buildActionItem(BuildContext context, IconData icon, String label, VoidCallback onTap) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -188,15 +189,19 @@ class _QuickActions extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
             ),
-            child: Icon(icon, color: color, size: 28),
+            child: Icon(icon, color: theme.primaryColor, size: 24),
           ),
           const SizedBox(height: 8),
           Text(
             label,
-            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500),
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w500,
+              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
+            ),
           ),
         ],
       ),

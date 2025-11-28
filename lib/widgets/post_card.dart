@@ -48,26 +48,39 @@ class PostCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
     final isLiked = currentUser != null && likes.contains(currentUser.uid);
+    final theme = Theme.of(context);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 1), // Full width or minimal spacing
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        border: Border(
+          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.1), width: 1),
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildAuthorHeader(context, currentUser?.uid),
-            const SizedBox(height: 16),
-            Text(content, style: const TextStyle(fontSize: 15)),
+            const SizedBox(height: 12),
+            Text(
+              content,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: 15,
+                height: 1.4,
+              ),
+            ),
             if (imageUrl != null && imageUrl!.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: Image.network(imageUrl!),
+                padding: const EdgeInsets.only(top: 12.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(imageUrl!),
+                ),
               ),
             const SizedBox(height: 12),
-            const Divider(height: 1),
             _buildActionButtons(context, isLiked),
           ],
         ),
