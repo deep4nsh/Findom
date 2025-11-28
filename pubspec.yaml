@@ -48,6 +48,9 @@ dependencies:
   flutter_hooks: ^0.20.3
   form_field_validator: ^1.1.0
   google_sign_in: ^6.2.1
+  flutter_localizations:
+    sdk: flutter
+  timezone: ^0.9.4
 
 dev_dependencies:
   flutter_test:
@@ -63,3 +66,4 @@ flutter:
     - assets/images/mascot.gif
     - assets/images/profile.png
     - assets/images/ca_avatar.png
+    - lib/localization/

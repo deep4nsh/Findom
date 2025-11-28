@@ -162,6 +162,14 @@ class _QuickActions extends StatelessWidget {
           _buildActionItem(context, Icons.newspaper, 'News', Colors.green, () {
              // Scroll to news section or open news tab
           }),
+          const SizedBox(width: 16),
+          _buildActionItem(context, Icons.alarm, 'Reminders', Colors.teal, () {
+             Navigator.pushNamed(context, '/reminders');
+          }),
+          const SizedBox(width: 16),
+          _buildActionItem(context, Icons.explore, 'Explore', Colors.indigo, () {
+             Navigator.pushNamed(context, '/explore');
+          }),
         ],
       ),
     );

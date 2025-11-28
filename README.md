@@ -131,33 +131,41 @@ ca_wisdom_app/
 ├── ios/
 ├── lib/
 │   ├── main.dart
+│   ├── app/
+│   │   ├── app.dart
+│   │   ├── routes.dart
+│   │   └── root_nav.dart
 │   ├── screens/
+│   │   ├── app_shell.dart
 │   │   ├── splash_screen.dart
 │   │   ├── onboarding_screen.dart
-│   │   ├── login_screen.dart
-│   │   ├── home_screen.dart
-│   │   ├── module_list_screen.dart
-│   │   ├── module_detail_screen.dart
-│   │   ├── calculator_screen.dart
-│   │   ├── reminder_screen.dart
-│   │   ├── explore_screen.dart
-│   │   ├── settings_screen.dart
+│   │   ├── auth/
+│   │   ├── home/
+│   │   ├── learn/
+│   │   ├── connect/
+│   │   ├── jobs/
+│   │   ├── profile/
+│   │   ├── reminders/
+│   │   │   └── reminder_screen.dart
+│   │   └── explore/
+│   │       └── explore_screen.dart
 │   ├── widgets/
 │   │   ├── custom_card.dart
 │   │   ├── app_bar.dart
 │   │   ├── bottom_nav.dart
+│   │   └── post_card.dart
 │   ├── services/
-│   │   ├── api_service.dart
+│   │   ├── locator.dart
 │   │   ├── reminder_service.dart
+│   │   ├── notification_service.dart
+│   │   └── ...
 │   ├── models/
-│   │   ├── article_model.dart
 │   │   ├── reminder_model.dart
-│   ├── utils/
-│   │   ├── constants.dart
-│   │   ├── validators.dart
+│   │   └── ...
 │   └── localization/
+│       ├── app_localizations.dart
 │       ├── en.json
-│       ├── hi.json
+│       └── hi.json
 │
 ├── pubspec.yaml
 ├── README.md
