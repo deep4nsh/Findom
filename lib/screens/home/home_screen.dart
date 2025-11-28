@@ -170,6 +170,10 @@ class _QuickActions extends StatelessWidget {
           _buildActionItem(context, Icons.explore, 'Explore', Colors.indigo, () {
              Navigator.pushNamed(context, '/explore');
           }),
+          const SizedBox(width: 16),
+          _buildActionItem(context, Icons.calculate, 'SIP Calc', Colors.orange, () {
+             Navigator.pushNamed(context, '/sip-calculator');
+          }),
         ],
       ),
     );
