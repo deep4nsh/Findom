@@ -22,8 +22,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   XFile? _imageFile;
   bool _isSubmitting = false;
 
-  Future<void> _pickImage() async {
-    final XFile? selectedImage = await _picker.pickImage(source: ImageSource.gallery);
+  Future<void> _pickImage(ImageSource source) async {
+    final XFile? selectedImage = await _picker.pickImage(source: source);
     setState(() {
       _imageFile = selectedImage;
     });
@@ -111,10 +111,24 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               if (_imageFile != null)
                 Image.file(File(_imageFile!.path), height: 200),
               const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _pickImage,
-                icon: const Icon(Icons.image),
-                label: const Text('Attach Image'),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickImage(ImageSource.camera),
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('Camera'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickImage(ImageSource.gallery),
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Gallery'),
+                    ),
+                  ),
+                ],
               ),
               if (_isSubmitting) const Padding(
                 padding: EdgeInsets.only(top: 16.0),
