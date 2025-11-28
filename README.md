@@ -108,6 +108,20 @@ To develop a cross-platform Flutter application (Android + iOS) that provides si
 
 ---
 
+### 💻 Tech Stack
+
+* **Core**: Flutter, Dart
+* **Backend**: Firebase (Auth, Firestore, Messaging)
+* **State Management**: Provider
+* **Dependency Injection**: GetIt
+* **Search**: Algolia
+* **Media**: Cloudinary, Image Picker
+* **Local Storage**: Shared Preferences
+* **Notifications**: Flutter Local Notifications
+* **Utilities**: Flutter TTS, Google Fonts, Flutter Hooks
+
+---
+
 ### 🛠 GitHub Project Structure
 
 ```
