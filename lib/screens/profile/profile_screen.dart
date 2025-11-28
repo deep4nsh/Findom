@@ -192,7 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
               Text(userProfile.userType.toString().split('.').last.toUpperCase()),
-              if (widget.userId != FirebaseAuth.instance.currentUser?.uid)
+              if (FirebaseAuth.instance.currentUser?.uid != null && widget.userId.trim() != FirebaseAuth.instance.currentUser!.uid.trim())
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: _buildFollowButton(),

@@ -95,7 +95,7 @@ class PostCard extends StatelessWidget {
             ],
           ),
         ),
-        if (userId != currentUserId)
+        if (currentUserId != null && userId.trim() != currentUserId.trim())
           Consumer<FollowingProvider>(
             builder: (context, followingProvider, child) {
               final bool isFollowing = followingProvider.isFollowing(userId);
