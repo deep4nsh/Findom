@@ -6,6 +6,7 @@ import 'package:findom/services/network_service.dart';
 import 'package:findom/services/search_service.dart';
 import 'package:findom/services/image_upload_service.dart';
 import 'package:findom/services/reminder_service.dart';
+import 'package:findom/services/mutual_fund_service.dart';
 
 GetIt locator = GetIt.instance;
 
@@ -16,5 +17,6 @@ void setupLocator() {
   locator.registerLazySingleton(() => NetworkService());
   locator.registerLazySingleton(() => SearchService());
   locator.registerLazySingleton(() => ImageUploadService());
-  locator.registerLazySingleton(() => ReminderService());
+  locator.registerLazySingleton<ReminderService>(() => ReminderService());
+  locator.registerLazySingleton<MutualFundService>(() => MutualFundService());
 }

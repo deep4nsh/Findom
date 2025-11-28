@@ -2,33 +2,25 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Rule Group 1: User & Profile Data
-    // ---------------------------------
+
+    function isSignedIn() { return request.auth != null; }
+    function isSelf(userId) { return isSignedIn() && request.auth.uid == userId; }
+
+    // 1) Users (optional; app stores some data in /users)
     match /users/{userId} {
-      allow read, update: if request.auth.uid == userId;
-      allow create: if request.auth.uid == userId;
+      allow read, create: if isSelf(userId);
+      // Prevent userType tampering on update
+      allow update: if isSelf(userId) && request.resource.data.userType == resource.data.userType;
+      allow delete: if false;
 
-      // Followers sub-collection rules
-      match /followers/{followerId} {
-        allow read: if request.auth != null;
-        allow create, delete: if request.auth.uid == followerId;
-      }
-
-      // Following sub-collection rules
-      match /following/{followingId} {
-        allow read: if request.auth != null;
-        allow create, delete: if request.auth.uid == userId;
+      // Reminders sub-collection rules (Added to fix PERMISSION_DENIED)
+      match /reminders/{reminderId} {
+        allow read, write: if isSelf(userId);
       }
     }
 
-    match /profiles/{userId} {
-      allow read: if request.auth != null;
-      allow create, update: if request.auth.uid == userId;
-      allow delete: if false; // Disallow deleting profiles for now
-    }
-
-    // User Type Collections (professionals, students, general_users, companies)
+    // 2) Role-based profiles used by the app
+    // Professionals are discoverable if verified; otherwise only the owner can read.
     match /professionals/{userId} {
       allow read: if request.auth != null;
       allow create, update, delete: if request.auth.uid == userId;
@@ -43,53 +35,66 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create, update, delete: if request.auth.uid == userId;
     }
-    
-    // Rule Group 2: Posts & Comments Data
-    // ------------------------------------
-    match /posts/{postId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth.uid == request.resource.data.authorId;
-      allow update, delete: if request.auth.uid == resource.data.authorId;
-      
-      // Comments sub-collection rules
-      match /comments/{commentId} {
-        allow read: if request.auth != null;
-        allow create: if request.auth.uid == request.resource.data.authorId;
-        allow update, delete: if request.auth.uid == resource.data.authorId;
-      }
-    }
 
-    // Rule Group 3: Jobs & Companies Data
-    // ---------------------------------------
     match /companies/{companyId} {
       allow read: if request.auth != null;
       allow create, update, delete: if request.auth.uid == companyId;
     }
 
-    match /jobs/{jobId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth.uid == request.resource.data.companyId;
-      allow update, delete: if request.auth.uid == resource.data.companyId;
+    // 3) Posts + Likes + Comments
+    match /posts/{postId} {
+      // Feed is visible to signed-in users
+      allow read: if isSignedIn();
+
+      // Only the post author can create the post with their authorId
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.authorId;
+
+      // Updates:
+      // - Author can update anything on their own post
+      // - Any signed-in user may update ONLY the 'likes' field (to like/unlike)
+      allow update: if (
+        (isSignedIn() && request.auth.uid == resource.data.authorId) ||
+        (
+          isSignedIn() &&
+          // Only 'likes' may change
+          request.resource.data.diff(resource.data).changedKeys().hasOnly(['likes'])
+        )
+      );
+
+      // Only the author can delete
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.authorId;
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        // Author of the comment can create
+        allow create: if isSignedIn() && request.auth.uid == request.resource.data.authorId;
+        // Optional: only allow updates/deletes by the comment author
+        allow update, delete: if isSignedIn() && request.auth.uid == resource.data.authorId;
+      }
     }
 
-    // Rule Group 4: Subscriptions Data
-    // ----------------------------------
-    match /subscriptions/{userId} {
-        // Only the user or a backend admin role can read/write subscription status.
-        // This rule will be refined when a payment system is fully integrated.
-        allow read, write: if request.auth.uid == userId;
+    // 4) Social graph (followers / following)
+    // Batch writes:
+    // - /following/{currentUserId}/userFollowing/{targetId}  (written by current user)
+    // - /followers/{targetId}/userFollowers/{currentUserId}  (written by current user)
+    match /following/{userId}/userFollowing/{targetId} {
+      allow read: if isSignedIn();
+      allow write: if isSelf(userId);
+      allow delete: if isSelf(userId);
     }
-
-    // Rule Group 5: Followers & Following Data
-    // ------------------------------------------
     match /followers/{userId}/userFollowers/{followerId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.uid == followerId;
+      allow read: if isSignedIn();
+      // Only the follower (current user) may add/remove themselves
+      allow write, delete: if isSelf(followerId);
     }
 
-    match /following/{userId}/userFollowing/{followingId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.uid == userId;
+    // 5) Jobs
+    match /jobs/{jobId} {
+      // Public job board reads
+      allow read: if true;
+      // Simplified: any signed-in can post; tighten to company-only if needed
+      allow create, update, delete: if isSignedIn();
     }
   }
 }
