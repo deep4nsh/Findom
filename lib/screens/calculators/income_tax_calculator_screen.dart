@@ -17,6 +17,7 @@ class _IncomeTaxCalculatorScreenState extends State<IncomeTaxCalculatorScreen> {
   final _80cController = TextEditingController();
   final _80dController = TextEditingController();
   final _otherDeductionsController = TextEditingController();
+  final _newRegimeDeductionsController = TextEditingController();
   final _taxRulesService = TaxRulesService();
 
   double _oldRegimeTax = 0;
@@ -31,6 +32,7 @@ class _IncomeTaxCalculatorScreenState extends State<IncomeTaxCalculatorScreen> {
     _80cController.dispose();
     _80dController.dispose();
     _otherDeductionsController.dispose();
+    _newRegimeDeductionsController.dispose();
     super.dispose();
   }
 
@@ -43,12 +45,13 @@ class _IncomeTaxCalculatorScreenState extends State<IncomeTaxCalculatorScreen> {
       final section80c = double.tryParse(_80cController.text) ?? 0;
       final section80d = double.tryParse(_80dController.text) ?? 0;
       final otherDeductions = double.tryParse(_otherDeductionsController.text) ?? 0;
+      final newRegimeDeductions = double.tryParse(_newRegimeDeductionsController.text) ?? 0;
 
       final rules = await _taxRulesService.getTaxRules();
 
       setState(() {
         _oldRegimeTax = _calculateOldRegimeTax(income, hra, section80c, section80d, otherDeductions, rules);
-        _newRegimeTax = _calculateNewRegimeTax(income, rules);
+        _newRegimeTax = _calculateNewRegimeTax(income, newRegimeDeductions, rules);
         _calculated = true;
         _isLoading = false;
       });
@@ -90,8 +93,8 @@ class _IncomeTaxCalculatorScreenState extends State<IncomeTaxCalculatorScreen> {
     return tax;
   }
 
-  double _calculateNewRegimeTax(double income, Map<String, dynamic> rules) {
-    double taxableIncome = income - (rules['standard_deduction_new'] ?? 75000);
+  double _calculateNewRegimeTax(double income, double deductions, Map<String, dynamic> rules) {
+    double taxableIncome = income - (rules['standard_deduction_new'] ?? 75000) - deductions;
     if (taxableIncome < 0) taxableIncome = 0;
 
     double tax = 0;
@@ -172,8 +175,16 @@ class _IncomeTaxCalculatorScreenState extends State<IncomeTaxCalculatorScreen> {
               const SizedBox(height: 12),
               _buildTextField(
                 controller: _otherDeductionsController,
-                label: 'Other Deductions',
+                label: 'Other Deductions (Standard, LTA, etc.)',
                 icon: Icons.more_horiz,
+              ),
+              const SizedBox(height: 24),
+              _buildSectionTitle('Deductions (Both Regimes / New Regime Specific)'),
+              const SizedBox(height: 12),
+              _buildTextField(
+                controller: _newRegimeDeductionsController,
+                label: 'Employr NPS (80CCD(2)) / Agniveer',
+                icon: Icons.account_balance,
               ),
               const SizedBox(height: 32),
               SizedBox(

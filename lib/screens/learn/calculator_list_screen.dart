@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:findom/screens/calculators/income_tax_calculator_screen.dart';
 import 'package:findom/screens/calculators/gst_calculator_screen.dart';
 import 'package:findom/screens/calculators/sip_calculator_screen.dart';
+import 'package:findom/screens/calculators/emi_calculator_screen.dart';
 
 class CalculatorListScreen extends StatelessWidget {
   const CalculatorListScreen({super.key});
@@ -61,8 +62,9 @@ class CalculatorListScreen extends StatelessWidget {
             icon: Icons.home,
             color: Colors.purple,
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('EMI Calculator coming soon!')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EMICalculatorScreen()),
               );
             },
           ),
