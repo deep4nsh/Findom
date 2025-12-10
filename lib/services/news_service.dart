@@ -52,6 +52,10 @@ class NewsService {
             .map((json) => NewsArticle.fromJson(json))
             .toList();
         
+        if (articles.isEmpty) {
+          return _getMockNews();
+        }
+
         // Calculate timeAgo
         return articles.map((article) {
           final timeDiff = DateTime.now().difference(article.publishedAt);
@@ -89,11 +93,17 @@ class NewsService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return (data['articles'] as List)
+        final blogs = (data['articles'] as List)
             .where((json) => json['title'] != null && json['title'] != '[Removed]')
             .map((json) => Blog.fromJson(json))
             .take(10) // Limit to 10 blogs
             .toList();
+            
+        if (blogs.isEmpty) {
+          return _getMockBlogs();
+        }
+        
+        return blogs;
       } else {
         return _getMockBlogs();
       }
